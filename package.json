@@ -11,7 +11,8 @@
     "bench:dom": "node dom-benchmark/run-headless.mjs",
     "bench:dom:trace": "node dom-benchmark/trace-headless.mjs",
     "serve:stock": "node dist/stock/server/server.mjs",
-    "serve:fixed": "node dist/fixed/server/server.mjs"
+    "serve:fixed": "node dist/fixed/server/server.mjs",
+    "bench:media": "node bench/media.mjs"
   },
   "private": true,
   "packageManager": "npm@11.20.0",

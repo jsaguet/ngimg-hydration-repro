@@ -22,7 +22,20 @@
         stable: false,
       });
       b.done = new Promise(function (resolve) { b.resolveDone = resolve; });
+      // Media elements: playback state just before hydration, and media-load restarts after it.
+      b.media = {};
+      ['emptied', 'loadstart'].forEach(function (type) {
+        document.addEventListener(type, function (e) {
+          var id = e.target.getAttribute && e.target.getAttribute('data-case');
+          if (b.hydrating && id && b.media[id]) b.media[id][type]++;
+        }, true);
+      });
       b.onBootstrapStart = function () {
+        Array.prototype.forEach.call(document.querySelectorAll('video[data-case], audio[data-case]'), function (m) {
+          b.media[m.getAttribute('data-case')] = {
+            timeBefore: m.currentTime, pausedBefore: m.paused, emptied: 0, loadstart: 0,
+          };
+        });
         b.hydrating = true;
         b.imagesLoadedAtBootstrap = Array.prototype.filter.call(document.images, function (img) {
           return img.complete && img.naturalWidth > 0;
@@ -106,6 +119,12 @@
           imagesWithHandlerCalledTwice: calls.filter(function (c) { return c > 1; }).length,
           rendersAfterStable: b.rendersAfterStable,
           dom: /[?&]inspect\b/.test(location.search) ? b.serializeDom() : null,
+          media: Object.keys(b.media).map(function (id) {
+            var m = document.querySelector('[data-case="' + id + '"]');
+            var r = b.media[id];
+            return {case: id, timeBefore: r.timeBefore, pausedBefore: r.pausedBefore,
+              timeAfter: m ? m.currentTime : null, emptied: r.emptied, loadstart: r.loadstart};
+          }),
         };
       };
     })();

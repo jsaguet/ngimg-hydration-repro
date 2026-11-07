@@ -110,6 +110,27 @@ measured (full output: [`bench/run-output-inputs.txt`](bench/run-output-inputs.t
   <img ngSrc="…" [width]="400" [height]="600" [sizes]="'(max-width: 640px) 50vw, 25vw'" />
   ```
 
+### Hydration restarts playing videos
+
+`/media` has three autoplaying, muted, looping videos with the same clip, one per way of putting
+`src` on the element. Hydration starts 1.5 s after load, so they are already playing
+(`npm run bench:media`, 3 runs per build, all identical):
+
+| Build | static `src="…"` | `[src]="clip"` | `[attr.src]="clip"` |
+|---|---|---|---|
+| `stock` | **restarts** (1.4 s → 0.2 s) | **restarts** | **restarts** |
+| `compare` | keeps playing (1.4 s → 1.8 s) | **restarts** | **restarts** |
+| `fixed+compare-inputs`, `fixed+skip` | keeps playing | **restarts** | **restarts** |
+
+Writing `src` again, even with the same value, restarts the media element's load algorithm
+(`emptied`, `loadstart`, position back to 0). Static attributes are written again by core's
+`setupStaticAttributes()` (fixed by `compare`); bindings are written again on their first update
+after hydration, which none of these builds change. The same write makes an `<iframe>` navigate
+again (checked outside Angular in Chrome 156: a new document is loaded).
+
+The clip is a generated 10 s silent WAV, which Chrome plays in a `<video>` element; the restart
+comes from the element's load algorithm, not from the codec.
+
 ### What's going on
 
 1. **`NgOptimizedImage` writes all its host attributes again** (9 per image), always with the
@@ -141,6 +162,7 @@ npm install
 npm run bench:build     # builds dist/<variant> for every build listed above
 npm run bench           # traced benchmark (≈15 min): prints the tables, writes bench/results.json
 npm run bench:inspect   # one load per build and page: attribute writes, old → new values, final DOM = stock?
+npm run bench:media     # do autoplaying videos restart when the app hydrates?
 ```
 
 `npm run bench -- --samples=15 --cpu=1,4,6` changes the sample count and CPU throttling.
