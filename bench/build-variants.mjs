@@ -24,10 +24,12 @@ try {
       .map((f) => readFileSync(join(browser, f), 'utf8')).join('\n');
     const ngimg = /getAttribute\(\w+\)!==\w+&&this\.renderer\.setAttribute\(this\.imgElement/.test(js);
     const core = js.match(/__ngimgReproCore\s*=\s*"([\w-]+)"/)?.[1] ?? 'stock';
-    if (ngimg !== (slots.ngimg === 'on') || core !== (slots.core ?? 'stock')) {
-      throw new Error(`dist/${variant}: unexpected bundle contents (ngimg fix: ${ngimg}, core: ${core})`);
+    const bindings = js.match(/__ngimgReproBindings\s*=\s*"(\w+)"/)?.[1] ?? 'stock';
+    if (ngimg !== (slots.ngimg === 'on') || core !== (slots.core ?? 'stock') ||
+        bindings !== (slots.bindings ?? 'stock')) {
+      throw new Error(`dist/${variant}: unexpected bundle contents (ngimg fix: ${ngimg}, core: ${core}, bindings: ${bindings})`);
     }
-    console.log(`dist/${variant}: NgOptimizedImage fix ${ngimg ? 'on' : 'off'}, core ${core} (as expected)`);
+    console.log(`dist/${variant}: NgOptimizedImage fix ${ngimg ? 'on' : 'off'}, core ${core}, bindings ${bindings} (as expected)`);
   }
 } finally {
   setVariant('stock');

@@ -12,6 +12,7 @@ const PAGES = [
   {name: 'product grid (200 images)', path: '/?bootAfterLoad&inspect'},
   {name: 'product grid, width/height/sizes bound', path: '/bound?bootAfterLoad&inspect'},
   {name: 'data table (300 rows, 2 images)', path: '/table?bootAfterLoad&inspect'},
+  {name: 'media (incl. values that differ between server and client)', path: '/media?bootAfterLoad&inspect'},
 ];
 
 const variants = Object.keys(VARIANTS).map((name, i) => ({name, port: 4420 + i}));

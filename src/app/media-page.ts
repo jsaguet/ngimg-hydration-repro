@@ -1,4 +1,5 @@
-import {Component} from '@angular/core';
+import {isPlatformBrowser} from '@angular/common';
+import {Component, inject, PLATFORM_ID} from '@angular/core';
 
 /**
  * Three autoplaying videos with the same clip, one per way of putting `src` on the element:
@@ -23,6 +24,12 @@ import {Component} from '@angular/core';
         <span>attribute binding <code>[attr.src]</code></span>
         <video data-case="attribute binding" [attr.src]="clip" autoplay muted loop playsinline preload="auto" width="240" height="40"></video>
       </li>
+      <li>
+        <!-- Control: the browser computes different values than the server, so they must be written. -->
+        <span>client value ≠ server value</span>
+        <video data-case="client differs" [src]="platformClip" [attr.data-platform]="platform" [title]="platform"
+          autoplay muted loop playsinline preload="auto" width="240" height="40"></video>
+      </li>
     </ul>
   `,
   styles: `
@@ -35,4 +42,6 @@ import {Component} from '@angular/core';
 })
 export class MediaPage {
   protected readonly clip = 'clip.wav';
+  protected readonly platform = isPlatformBrowser(inject(PLATFORM_ID)) ? 'browser' : 'server';
+  protected readonly platformClip = `clip.wav?rendered-on=${this.platform}`;
 }

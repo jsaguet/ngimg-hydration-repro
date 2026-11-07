@@ -6,8 +6,11 @@
 //   core   compare  Exploratory, option B: on DOM nodes reused from the server during hydration,
 //                   write a template's static attribute / class / style only if the DOM value
 //                   differs. The final DOM is the same as today; only identical writes are dropped.
+//          compare-inputs  `compare`, and leave alone static attributes a directive takes as an input.
 //          skip     Exploratory, option A: on reused nodes, don't write static attributes / class /
 //                   style at all (static `@animation` triggers are still registered).
+//   bindings on     Exploratory: on reused nodes, [attr.x] and [prop] bindings skip a write whose
+//                   value the DOM already has (needs a core option, which marks reused nodes).
 //
 // Usage: node bench/patch.mjs status | apply <variant> | revert
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -90,32 +93,79 @@ function elementLikeStartShared(tNode, lView, index, name, locateOrCreateNativeN
       setupStaticAttributes(lView[RENDERER], native, tNode);
     } else {
       ngimgReproStaticAttributesOnReusedNode(lView[RENDERER], native, tNode);
+      // Remember nodes reused from the server, for the \`bindings\` patch.
+      (globalThis.__ngimgReproReused ??= new WeakSet()).add(native);
     }
     if (getElementDepthCount() === 0`;
 
+// --- bindings: the first write of [attr.x] and [prop] bindings on reused nodes -------------------
+// Requires a core patch (which marks reused nodes). Compares the DOM before writing: attribute
+// bindings against the attribute; property bindings against the live property, except URL
+// properties, whose getter returns the resolved absolute URL, which are compared against the
+// attribute instead.
+const ATTR_BINDING_STOCK = `    const strValue = sanitizer == null ? renderStringify(value) : sanitizer(value, tagName || '', name);
+    renderer.setAttribute(element, name, strValue, namespace);`;
+const ATTR_BINDING_PATCHED = `    const strValue = sanitizer == null ? renderStringify(value) : sanitizer(value, tagName || '', name);
+    // ngimg-hydration-repro: bindings change
+    if (globalThis.__ngimgReproReused?.has(element) && !namespace && element.getAttribute(name) === strValue) {
+      return;
+    }
+    renderer.setAttribute(element, name, strValue, namespace);`;
+const PROP_BINDING_STOCK = `    value = unwrapImgVideoSrcValue(propName, element, value);
+    renderer.setProperty(element, propName, value);`;
+const PROP_BINDING_PATCHED = `    value = unwrapImgVideoSrcValue(propName, element, value);
+    // ngimg-hydration-repro: bindings change
+    if (globalThis.__ngimgReproReused?.has(element) && ngimgReproSameDomProperty(element, propName, value)) {
+      return;
+    }
+    renderer.setProperty(element, propName, value);`;
+const PROP_HELPER_STOCK = `function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
+const PROP_HELPER_PATCHED = `globalThis.__ngimgReproBindings = 'on';
+const NGIMG_REPRO_URL_PROPS = new Set(['src', 'href', 'poster', 'data', 'action', 'formAction', 'cite']);
+function ngimgReproSameDomProperty(element, propName, value) {
+  if (NGIMG_REPRO_URL_PROPS.has(propName)) {
+    return typeof value === 'string' && element.getAttribute(propName.toLowerCase()) === value;
+  }
+  return element[propName] === value;
+}
+function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
+
+// Each slot is stock or one of its options; a slot can patch several places (parts) in one file.
 const SLOTS = {
   ngimg: {
     file: join(pkgDir('@angular/common'), 'fesm2022/common.mjs'),
-    stock: `  setHostAttribute(name, value) {
+    parts: [{
+      stock: `  setHostAttribute(name, value) {
     this.renderer.setAttribute(this.imgElement, name, value);
   }`,
-    options: {
-      on: `  setHostAttribute(name, value) {
+      options: {
+        on: `  setHostAttribute(name, value) {
     // ngimg-hydration-repro: proposed fix
     if (this.imgElement.getAttribute(name) !== value) {
       this.renderer.setAttribute(this.imgElement, name, value);
     }
   }`,
-    },
+      },
+    }],
   },
   core: {
     file: join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs'),
-    stock: CORE_STOCK,
-    options: {
-      'compare': corePatched('compare'),
-      'compare-inputs': corePatched('compare-inputs'),
-      'skip': corePatched('skip'),
-    },
+    parts: [{
+      stock: CORE_STOCK,
+      options: {
+        'compare': corePatched('compare'),
+        'compare-inputs': corePatched('compare-inputs'),
+        'skip': corePatched('skip'),
+      },
+    }],
+  },
+  bindings: {
+    file: join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs'),
+    parts: [
+      {stock: ATTR_BINDING_STOCK, options: {on: ATTR_BINDING_PATCHED}},
+      {stock: PROP_BINDING_STOCK, options: {on: PROP_BINDING_PATCHED}},
+      {stock: PROP_HELPER_STOCK, options: {on: PROP_HELPER_PATCHED}},
+    ],
   },
 };
 
@@ -127,17 +177,21 @@ export const VARIANTS = {
   'fixed+compare': {ngimg: 'on', core: 'compare'},
   'fixed+compare-inputs': {ngimg: 'on', core: 'compare-inputs'},
   'fixed+skip': {ngimg: 'on', core: 'skip'},
+  'fixed+compare+bindings': {ngimg: 'on', core: 'compare', bindings: 'on'},
+  'fixed+compare-inputs+bindings': {ngimg: 'on', core: 'compare-inputs', bindings: 'on'},
 };
 
 const read = (file) => readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+const count = (src, text) => src.split(text).length - 1;
 
 export function status() {
   return Object.fromEntries(Object.entries(SLOTS).map(([slot, s]) => {
     const src = read(s.file);
-    const option = Object.entries(s.options).find(([, text]) => src.includes(text))?.[0];
+    const options = Object.keys(s.parts[0].options);
+    const option = options.find((o) => s.parts.every((p) => count(src, p.options[o]) === 1));
     if (option) return [slot, option];
-    if (src.includes(s.stock)) return [slot, 'stock'];
-    throw new Error(`${slot}: patch target not found in ${s.file}; the Angular version may have changed.`);
+    if (s.parts.every((p) => count(src, p.stock) === 1)) return [slot, 'stock'];
+    throw new Error(`${slot}: patch target not found (exactly once) in ${s.file}; the Angular version may have changed.`);
   }));
 }
 
@@ -149,8 +203,10 @@ export function setVariant(variant) {
     const want = wanted[slot] ?? 'stock';
     if (current[slot] === want) continue;
     let src = read(s.file);
-    if (current[slot] !== 'stock') src = src.replace(s.options[current[slot]], s.stock);
-    if (want !== 'stock') src = src.replace(s.stock, s.options[want]);
+    for (const p of s.parts) {
+      if (current[slot] !== 'stock') src = src.replace(p.options[current[slot]], p.stock);
+      if (want !== 'stock') src = src.replace(p.stock, p.options[want]);
+    }
     writeFileSync(s.file, src);
   }
   const after = status();

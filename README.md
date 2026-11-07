@@ -36,6 +36,7 @@ and restores them afterwards:
 | `fixed+compare` | `fixed` + `compare` |
 | `fixed+compare-inputs` | `fixed` + `compare`, and on reused nodes also leave alone static attributes that a directive on the element takes as an input (`tNode.inputs` / `hostDirectiveInputs`). Fixes the `sizes` conflict, same final DOM as today |
 | `fixed+skip` | `fixed` + exploratory core change, **option A**: on reused nodes, don't write static attributes / class / style at all (static `@animation` triggers are still registered). Changes behavior, see below |
+| `fixed+compare+bindings`, `fixed+compare-inputs+bindings` | + on reused nodes, `[attr.x]` and `[prop]` bindings skip a write whose value the DOM already has: attributes compared with `getAttribute()`, properties with the live property, URL properties (`src`, `href`, `poster`, …) with the attribute, since their getter returns the resolved URL. Same final DOM as today |
 
 `npm run bench:inspect` checks that every build ends with the same hydrated DOM as `stock` (it
 does, on both pages) and lists which attributes each build writes during hydration.
@@ -113,20 +114,27 @@ measured (full output: [`bench/run-output-inputs.txt`](bench/run-output-inputs.t
 ### Hydration restarts playing videos
 
 `/media` has three autoplaying, muted, looping videos with the same clip, one per way of putting
-`src` on the element. Hydration starts 1.5 s after load, so they are already playing
-(`npm run bench:media`, 3 runs per build, all identical):
+`src` on the element, plus a control video whose `src`, `data-platform` and `title` differ between
+server and browser. Hydration starts 1.5 s after load, so they are already playing
+(`npm run bench:media`, 2–3 runs per build, all identical):
 
-| Build | static `src="…"` | `[src]="clip"` | `[attr.src]="clip"` |
-|---|---|---|---|
-| `stock` | **restarts** (1.4 s → 0.2 s) | **restarts** | **restarts** |
-| `compare` | keeps playing (1.4 s → 1.8 s) | **restarts** | **restarts** |
-| `fixed+compare-inputs`, `fixed+skip` | keeps playing | **restarts** | **restarts** |
+| Build | static `src="…"` | `[src]="clip"` | `[attr.src]="clip"` | control (client value ≠ server) |
+|---|---|---|---|---|
+| `stock` | **restarts** (1.4 s → 0.2 s) | **restarts** | **restarts** | restarts, client values applied |
+| `compare` and the other core-only builds | keeps playing (1.4 s → 1.8 s) | **restarts** | **restarts** | restarts, client values applied |
+| `…+bindings` | keeps playing | keeps playing | keeps playing | restarts, client values applied |
 
 Writing `src` again, even with the same value, restarts the media element's load algorithm
 (`emptied`, `loadstart`, position back to 0). Static attributes are written again by core's
 `setupStaticAttributes()` (fixed by `compare`); bindings are written again on their first update
-after hydration, which none of these builds change. The same write makes an `<iframe>` navigate
-again (checked outside Angular in Chrome 156: a new document is loaded).
+after hydration (fixed by `…+bindings`). The control video must restart in every build, since its
+source really changes, and it does. The same write makes an `<iframe>` navigate again (checked
+outside Angular in Chrome 156: a new document is loaded).
+
+The bindings change has no measurable cost ([`bench/run-output-bindings.txt`](bench/run-output-bindings.txt)):
+grid hydration 31.0 → 33.2 ms and 205 → 202 ms (1× / 4× CPU), table 12.8 → 13.7 ms and 69.6 → 70.4 ms,
+within run-to-run noise. These pages have few attribute or property bindings, so it doesn't speed
+them up either; its point is the restart.
 
 The clip is a generated 10 s silent WAV, which Chrome plays in a `<video>` element; the restart
 comes from the element's load algorithm, not from the codec.

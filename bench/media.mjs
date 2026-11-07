@@ -47,6 +47,7 @@ console.table(Object.fromEntries(Object.entries(rows).map(([key, ms]) => [key, {
   'position before (s)': ms.map((m) => m.timeBefore.toFixed(2)).join(' / '),
   'position after (s)': ms.map((m) => m.timeAfter.toFixed(2)).join(' / '),
   'media load restarted (emptied, loadstart)': ms.map((m) => `${m.emptied},${m.loadstart}`).join(' / '),
+  'after hydration: src | data-platform | title': `${ms[0].src} | ${ms[0].platform} | ${ms[0].title}`,
 }])));
 page.close();
 setTimeout(() => process.exit(0), 300);
