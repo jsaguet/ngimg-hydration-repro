@@ -29,11 +29,16 @@ const CORE_STOCK = `function elementLikeStartShared(tNode, lView, index, name, l
     setupStaticAttributes(lView[RENDERER], native, tNode);
     if (getElementDepthCount() === 0`;
 
-/** The core change: `compare` writes only what differs, `skip` writes nothing (except `@` props). */
+/**
+ * The core change on reused nodes: `compare` writes only what differs, `compare-inputs` also leaves
+ * alone static attributes that a directive on the element takes as an input (the directive manages
+ * them, so the server HTML already has their final value), `skip` writes nothing (except `@` props).
+ */
 const corePatched = (mode) => `// ngimg-hydration-repro: exploratory core change (${mode})
 globalThis.__ngimgReproCore = '${mode}';
 function ngimgReproStaticAttributesOnReusedNode(renderer, element, tNode) {
-  const compare = ${mode === 'compare'};
+  const compare = ${mode !== 'skip'};
+  const skipDirectiveInputs = ${mode === 'compare-inputs'};
   const {mergedAttrs: attrs, classes, styles} = tNode;
   if (attrs !== null) {
     let i = 0;
@@ -56,6 +61,9 @@ function ngimgReproStaticAttributesOnReusedNode(renderer, element, tNode) {
         const attrVal = attrs[++i];
         if (isAnimationProp(attrName)) {
           renderer.setProperty(element, attrName, attrVal);
+        } else if (skipDirectiveInputs &&
+            (tNode.inputs?.[attrName] || tNode.hostDirectiveInputs?.[attrName])) {
+          // Taken as a directive input: the directive manages this attribute.
         } else if (compare && element.getAttribute(attrName) !== attrVal) {
           renderer.setAttribute(element, attrName, attrVal);
         }
@@ -103,7 +111,11 @@ const SLOTS = {
   core: {
     file: join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs'),
     stock: CORE_STOCK,
-    options: {compare: corePatched('compare'), skip: corePatched('skip')},
+    options: {
+      'compare': corePatched('compare'),
+      'compare-inputs': corePatched('compare-inputs'),
+      'skip': corePatched('skip'),
+    },
   },
 };
 
@@ -113,6 +125,7 @@ export const VARIANTS = {
   'fixed': {ngimg: 'on'},
   'compare': {core: 'compare'},
   'fixed+compare': {ngimg: 'on', core: 'compare'},
+  'fixed+compare-inputs': {ngimg: 'on', core: 'compare-inputs'},
   'fixed+skip': {ngimg: 'on', core: 'skip'},
 };
 

@@ -19,6 +19,9 @@ default).
   responsive `srcset` (`sizes` set, default 16 breakpoints, imgix-style URLs served by the app's own
   server), and a `(load)` handler on every image, as used to fade images in or hide skeletons. A
   badge shows how many times it ran.
+- `/bound` **product grid, bound attributes**: the same grid with `[width]="400"`,
+  `[height]="600"` and `[sizes]="sizes"` bound to the directive's inputs instead of written as
+  static attributes.
 - `/table` **data table**: 300 rows of static-heavy markup (static classes, ARIA attributes, inline
   styles, inline SVG icons, a `[class.x]` binding next to static classes) and only 2 images.
 
@@ -31,6 +34,7 @@ and restores them afterwards:
 | `fixed` | **The proposed fix**: `NgOptimizedImage#setHostAttribute` skips the write when the element already has that value |
 | `compare` | Exploratory core change, **option B**: on DOM nodes reused from the server, write a template's static attribute / class / style only if the DOM value differs. Same final DOM as today |
 | `fixed+compare` | `fixed` + `compare` |
+| `fixed+compare-inputs` | `fixed` + `compare`, and on reused nodes also leave alone static attributes that a directive on the element takes as an input (`tNode.inputs` / `hostDirectiveInputs`). Fixes the `sizes` conflict, same final DOM as today |
 | `fixed+skip` | `fixed` + exploratory core change, **option A**: on reused nodes, don't write static attributes / class / style at all (static `@animation` triggers are still registered). Changes behavior, see below |
 
 `npm run bench:inspect` checks that every build ends with the same hydrated DOM as `stock` (it
@@ -72,6 +76,34 @@ runs; compare within a row. Full output: [`bench/run-output.txt`](bench/run-outp
   `fixed+skip` (−71%).
 - The remaining `class` writes in B/A come from class *bindings*, not static attributes:
   `classList.remove()` of a class that isn't there still rewrites the attribute.
+
+### Fixing the `sizes` conflict
+
+`sizes`, `width` and `height` are inputs of `NgOptimizedImage`. Core re-applies them because they
+are written as static attributes; the directive manages them anyway. Two ways around that, both
+measured (full output: [`bench/run-output-inputs.txt`](bench/run-output-inputs.txt),
+[`bench/run-output-bound.txt`](bench/run-output-bound.txt)):
+
+| Hydration (bootstrap → stable) | stock | fixed | fixed+compare | **fixed+compare-inputs** | fixed+skip |
+|---|---|---|---|---|---|
+| Grid, 1× | 49.8 ms | 40.4 (−19%) | 42.6 (−14%) | **15.4 (−69%)** | 14.1 (−72%) |
+| Grid, 4× | 286 ms | 239 (−16%) | 223 (−22%) | **78.5 (−73%)** | 79 (−72%) |
+| Table, 1× | 29.3 ms | 28.7 (−2%) | 13.6 (−54%) | **14.3 (−51%)** | 12.4 (−58%) |
+| Table, 4× | 196 ms | 201 (+2%) | 80.5 (−59%) | **77.4 (−61%)** | 60.4 (−69%) |
+
+- **In core, `compare-inputs`** gets option A's gains on images (no `load` fired again, `(load)`
+  handlers run once) and option B's safety elsewhere (the static `class`/`style` reset is kept,
+  final DOM identical to `stock` on all pages).
+- **In app code, today:** bind the inputs instead of writing static attributes. With only the
+  `fixed` change, hydration of the grid drops from 38.3 ms to 15.9 ms (−58%, 1× CPU) and from
+  205 ms to 86 ms (4× CPU), no `load` fired again:
+
+  ```html
+  <!-- core writes width, height and sizes again during hydration -->
+  <img ngSrc="…" width="400" height="600" sizes="(max-width: 640px) 50vw, 25vw" />
+  <!-- only NgOptimizedImage writes them; with the fix, not at all when unchanged -->
+  <img ngSrc="…" [width]="400" [height]="600" [sizes]="'(max-width: 640px) 50vw, 25vw'" />
+  ```
 
 ### What's going on
 
@@ -143,8 +175,10 @@ cost ~0.2 ms; `loading`, `fetchpriority`, `decoding` and `ng-img` are negligible
 - Chrome only, headless, local server. Absolute numbers depend on the machine; compare columns.
 - The patches target the published 22.2.x bundles; `bench/patch.mjs` fails loudly if the code it
   patches has changed.
-- The core changes (`compare`, `skip`) are exploratory and only patch `elementLikeStartShared`
-  (template elements), not root component hosts. `skip` changes behavior: server-only classes
+- The core changes (`compare`, `compare-inputs`, `skip`) are exploratory and only patch
+  `elementLikeStartShared` (template elements), not root component hosts. `compare-inputs` relies
+  on directives that take an attribute as an input rendering it the same way on server and client.
+  `skip` changes behavior: server-only classes
   added through `[class]`/`ngClass` bindings would stay, server-side changes to static attributes
   would persist, and `(load)` handlers of images that loaded before hydration only run if event
   replay is on. The table page's DOM matches only because server and client state are the same.

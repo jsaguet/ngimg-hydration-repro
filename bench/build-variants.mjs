@@ -23,7 +23,7 @@ try {
     const js = readdirSync(browser).filter((f) => f.endsWith('.js'))
       .map((f) => readFileSync(join(browser, f), 'utf8')).join('\n');
     const ngimg = /getAttribute\(\w+\)!==\w+&&this\.renderer\.setAttribute\(this\.imgElement/.test(js);
-    const core = js.match(/__ngimgReproCore\s*=\s*"(\w+)"/)?.[1] ?? 'stock';
+    const core = js.match(/__ngimgReproCore\s*=\s*"([\w-]+)"/)?.[1] ?? 'stock';
     if (ngimg !== (slots.ngimg === 'on') || core !== (slots.core ?? 'stock')) {
       throw new Error(`dist/${variant}: unexpected bundle contents (ngimg fix: ${ngimg}, core: ${core})`);
     }

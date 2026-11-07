@@ -19,11 +19,15 @@ const chromePath = args.find((a) => !a.startsWith('--'));
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const VARIANTS = opt('variants', Object.keys(ALL_VARIANTS).join(',')).split(',')
   .map((name, i) => ({name, port: 4401 + i}));
-const SCENARIOS = [
+const ALL_SCENARIOS = [
   {name: 'product grid (200 images), hydrate after images loaded', path: '/?bootAfterLoad'},
   {name: 'product grid (200 images), hydrate as soon as JS runs', path: '/'},
+  {name: 'product grid, width/height/sizes bound, hydrate after images loaded', path: '/bound?bootAfterLoad'},
   {name: 'data table (300 rows, 2 images)', path: '/table'},
 ];
+// --paths=/,/table runs only the scenarios with those paths.
+const PATHS = opt('paths', '');
+const SCENARIOS = PATHS ? ALL_SCENARIOS.filter((s) => PATHS.split(',').includes(s.path)) : ALL_SCENARIOS;
 
 // --- Servers -----------------------------------------------------------------------------------
 const servers = VARIANTS.map(({name, port}) =>

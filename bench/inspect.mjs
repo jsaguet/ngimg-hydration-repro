@@ -10,6 +10,7 @@ const chromePath = process.argv[2];
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const PAGES = [
   {name: 'product grid (200 images)', path: '/?bootAfterLoad&inspect'},
+  {name: 'product grid, width/height/sizes bound', path: '/bound?bootAfterLoad&inspect'},
   {name: 'data table (300 rows, 2 images)', path: '/table?bootAfterLoad&inspect'},
 ];
 

@@ -36,3 +36,17 @@ export class ProductGrid {
     benchHooks()?.onLoadHandler(product.id);
   }
 }
+
+/**
+ * The same grid with `width`, `height` and `sizes` bound to the directive's inputs instead of
+ * written as static attributes: core then never writes them, only NgOptimizedImage does.
+ */
+@Component({
+  selector: 'app-product-grid-bound',
+  imports: [NgOptimizedImage],
+  templateUrl: './product-grid-bound.html',
+  styleUrl: './product-grid.css',
+})
+export class ProductGridBound extends ProductGrid {
+  protected readonly sizes = '(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw';
+}
