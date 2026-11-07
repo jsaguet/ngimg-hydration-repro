@@ -92,8 +92,13 @@ measured (full output: [`bench/run-output-inputs.txt`](bench/run-output-inputs.t
 | Table, 4× | 196 ms | 201 (+2%) | 80.5 (−59%) | **77.4 (−61%)** | 60.4 (−69%) |
 
 - **In core, `compare-inputs`** gets option A's gains on images (no `load` fired again, `(load)`
-  handlers run once) and option B's safety elsewhere (the static `class`/`style` reset is kept,
-  final DOM identical to `stock` on all pages).
+  handlers run once) and keeps the static `class`/`style` reset; the final DOM is identical to
+  `stock` on all pages. Applied to *every* directive input, though, it's a breaking change: a
+  directive that reads such an attribute from the DOM at startup would see the server's value
+  instead of the template value, and changes a directive makes only on the server would stay.
+  The safe form is an opt-in, where a directive declares the attributes it manages (for
+  `NgOptimizedImage`: `sizes`, `width`, `height`). In this app, `NgOptimizedImage` is the only
+  directive with such inputs, so the opt-in form would measure the same.
 - **In app code, today:** bind the inputs instead of writing static attributes. With only the
   `fixed` change, hydration of the grid drops from 38.3 ms to 15.9 ms (−58%, 1× CPU) and from
   205 ms to 86 ms (4× CPU), no `load` fired again:
