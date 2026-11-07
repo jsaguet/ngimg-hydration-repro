@@ -1,0 +1,44 @@
+<header class="page-header" role="banner">
+  <img ngSrc="brand/logo.png" width="120" height="40" priority alt="Acme invoices" class="logo" />
+  <h1 class="page-title">Invoices</h1>
+  <img ngSrc="people/avatar-42.png" width="40" height="40" alt="" class="avatar" />
+</header>
+<main class="page-main" role="main">
+  <table class="table table--striped" role="table" aria-label="Invoices">
+    <thead class="table__head">
+      <tr class="table__row" role="row">
+        <th class="table__cell table__cell--head" role="columnheader" scope="col">ID</th>
+        <th class="table__cell table__cell--head" role="columnheader" scope="col">Invoice</th>
+        <th class="table__cell table__cell--head" role="columnheader" scope="col">Status</th>
+        <th class="table__cell table__cell--head num" role="columnheader" scope="col">Amount</th>
+        <th class="table__cell table__cell--head" role="columnheader" scope="col"><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody class="table__body">
+      @for (row of rows; track row.id) {
+        <tr class="table__row" role="row">
+          <td class="table__cell table__cell--id" role="cell">{{ row.id }}</td>
+          <td class="table__cell" role="cell">
+            <a class="link link--quiet" href="#" title="Open invoice">{{ row.name }}</a>
+          </td>
+          <td class="table__cell" role="cell">
+            <span class="badge badge--status" [class.badge--warn]="row.warn" aria-live="off">{{ row.status }}</span>
+          </td>
+          <td class="table__cell num" role="cell" style="font-variant-numeric: tabular-nums">{{ row.amount }}</td>
+          <td class="table__cell table__cell--actions" role="cell">
+            <button type="button" class="btn btn--icon" aria-label="Edit invoice" title="Edit">
+              <svg class="icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" />
+              </svg>
+            </button>
+            <button type="button" class="btn btn--icon" aria-label="Download invoice" title="Download">
+              <svg class="icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M5 20h14v-2H5v2zm7-18-5.5 5.5h4V16h3V7.5h4L12 2z" />
+              </svg>
+            </button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</main>

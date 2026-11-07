@@ -1,0 +1,72 @@
+:host {
+  display: block;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.page-title {
+  flex: 1;
+  font-size: 20px;
+  margin: 0;
+}
+.logo,
+.avatar {
+  background: var(--line);
+}
+.avatar {
+  border-radius: 50%;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table__cell {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.table--striped [role='row']:nth-child(even) {
+  background: color-mix(in srgb, var(--line) 30%, transparent);
+}
+.table__cell--head {
+  color: var(--muted);
+  font-weight: 600;
+}
+.num {
+  text-align: right;
+}
+.link--quiet {
+  color: inherit;
+}
+.badge {
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.badge--warn {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+.btn--icon {
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+button[aria-label]:hover {
+  color: var(--fg);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

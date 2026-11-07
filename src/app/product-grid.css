@@ -1,0 +1,41 @@
+:host {
+  display: block;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+p {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+img {
+  width: 100%;
+  height: auto;
+  background: var(--line);
+}
+.badge {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.badge.twice {
+  color: var(--bad);
+  font-weight: 600;
+}

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NgOptimizedImage hydration srcset</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1b1f; --muted:#5f6368; --line:#dadce0; --good:#137333; --bad:#b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#16161a; --fg:#e8eaed; --muted:#9aa0a6; --line:#3c4043; --good:#81c995; --bad:#f28b82; }
+  }
+  :root[data-theme="dark"] { --bg:#16161a; --fg:#e8eaed; --muted:#9aa0a6; --line:#3c4043; --good:#81c995; --bad:#f28b82; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, sans-serif; }
+  main { max-width:960px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p { color:var(--muted); margin:0 0 12px; }
+  form { display:flex; flex-wrap:wrap; gap:12px; align-items:end; margin:12px 0; }
+  label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); }
+  input { width:90px; padding:4px 6px; font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:4px; }
+  button { padding:6px 14px; font:inherit; cursor:pointer; }
+  .table-wrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; font-variant-numeric:tabular-nums; }
+  th, td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  .good { color:var(--good); } .bad { color:var(--bad); }
+  pre { white-space:pre-wrap; word-break:break-all; font-size:11px; color:var(--muted); max-height:120px; overflow:auto; }
+  #host { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:8px; margin-top:16px; }
+  #host img { width:100%; height:auto; background:var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <h1>NgOptimizedImage: re-setting identical attributes during hydration</h1>
+  <p>
+    Each sample injects "server-rendered" <code>&lt;img&gt;</code> markup exactly as NgOptimizedImage emits it
+    (imgix-style loader, default 16 breakpoints, <code>sizes</code> set &rArr; responsive srcset), waits for it to settle,
+    then replays what <code>NgOptimizedImage.ngOnInit &rarr; setHostAttributes()</code> does on the client during hydration.
+    <b>current</b> = unconditional <code>setAttribute</code> (today's behaviour);
+    <b>fix …</b> = <code>getAttribute(name) !== value</code> check first, for the listed attributes
+    (the others are still written unconditionally).
+    Every variant computes the attribute strings (loader calls), so only the DOM write differs.
+  </p>
+  <form id="form">
+    <label>images <input name="images" type="number" value="200" min="1"></label>
+    <label>breakpoints <input name="breakpoints" type="number" value="16" min="1"></label>
+    <label>samples <input name="samples" type="number" value="15" min="1"></label>
+    <button type="submit">Run</button>
+  </form>
+  <div id="out"><p>Press Run.</p></div>
+  <pre id="sample"></pre>
+  <div id="host"></div>
+</main>
+<script>
+// --- Mirrors packages/common/src/directives/ng_optimized_image -----------------------------
+const DEFAULT_BREAKPOINTS = [16, 32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+const LOADER_PATH = location.origin + '/img'; // stands in for https://<account>.imgix.net
+const SIZES = '(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw';
+
+function breakpointsFor(count) {
+  if (count <= DEFAULT_BREAKPOINTS.length) return DEFAULT_BREAKPOINTS.slice(0, count);
+  // More breakpoints than the defaults: spread extra widths across the same range.
+  return Array.from({length: count}, (_, i) => Math.round(16 + (i * (3840 - 16)) / (count - 1)));
+}
+
+// createImgixUrl()
+function imgixLoader(src, width) {
+  const params = ['auto=format'];
+  if (width) params.push(`w=${width}`);
+  const url = new URL(`${LOADER_PATH}/${src}`);
+  url.search = params.join('&');
+  return url.href;
+}
+
+// Set by prepareSample() in trace mode: 'slow/<nonce>/' gives uncached URLs that the server
+// answers after 2 s, so the images are still downloading while hydration runs.
+let urlPrefix = '';
+function ngSrcFor(i) {
+  return `${urlPrefix}catalog/2024/summer/womens/dresses/linen-midi-dress-sage-green-front-view-${i}.jpg`;
+}
+
+// The first row is a hero row marked `priority` (eager / fetchpriority=high / decoding=sync).
+const PRIORITY_COUNT = 4;
+
+// What setHostAttributes() writes, in the same order, for a non-fill image with width/height
+// and `sizes` set (=> getResponsiveSrcset()).
+function directiveAttributes(i, breakpoints) {
+  const ngSrc = ngSrcFor(i);
+  const priority = i < PRIORITY_COUNT;
+  const loading = priority ? 'eager' : 'lazy';
+  return [
+    ['width', '400'],
+    ['height', '600'],
+    ['loading', loading],
+    ['fetchpriority', priority ? 'high' : 'auto'],
+    ['decoding', priority ? 'sync' : 'auto'],
+    ['ng-img', 'true'],
+    ['src', imgixLoader(ngSrc, undefined)],
+    ['srcset', breakpoints.map((bp) => `${imgixLoader(ngSrc, bp)} ${bp}w`).join(', ')],
+    ['sizes', loading === 'lazy' ? 'auto, ' + SIZES : SIZES],
+  ];
+}
+
+// Server output: same attributes, serialized into HTML (what the browser parses before hydration).
+function ssrMarkup(count, breakpoints) {
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const attrs = directiveAttributes(i, breakpoints)
+      .map(([k, v]) => `${k}="${v.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
+      .join(' ');
+    html += `<img alt="" ${attrs}>`;
+  }
+  return html;
+}
+
+const ALL_ATTRS = ['width', 'height', 'loading', 'fetchpriority', 'decoding', 'ng-img', 'src', 'srcset', 'sizes'];
+
+// The fix: skip the write when the hydrated element already carries the value, for the
+// attributes in `checked`. Attributes not in `checked` are written unconditionally (today's code).
+function checking(checked) {
+  const set = new Set(checked);
+  return (img, name, value) => {
+    if (!set.has(name) || img.getAttribute(name) !== value) img.setAttribute(name, value);
+  };
+}
+
+const BASE = 'current (no check)';
+const VARIANTS = {
+  // Today: NgOptimizedImage.setHostAttribute() -> renderer.setAttribute(el, name, value)
+  [BASE]: checking([]),
+  'fix srcset': checking(['srcset']),
+  'fix srcset+src+sizes': checking(['srcset', 'src', 'sizes']),
+  'fix all attributes': checking(ALL_ATTRS),
+  // Baseline: compute the strings (loader calls) but write nothing.
+  // A variant's total minus this = its DOM-side cost alone.
+  'compute only': () => {},
+};
+const MAIN_VARIANTS = Object.keys(VARIANTS);
+// Per-attribute breakdown: everything checked except one attribute, which is re-written
+// unconditionally. Its total minus 'fix all attributes' = what re-writing that attribute costs.
+for (const a of ALL_ATTRS) VARIANTS[`rewrite ${a}`] = checking(ALL_ATTRS.filter((x) => x !== a));
+const BREAKDOWN_VARIANTS = ['fix all attributes', ...ALL_ATTRS.map((a) => `rewrite ${a}`)];
+
+// --- Harness ---------------------------------------------------------------------------------
+const host = document.getElementById('host');
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+const microtasks = () => new Promise((r) => setTimeout(r, 0));
+
+async function settle() {
+  await nextFrame();
+  await nextFrame();
+  const pending = [...host.querySelectorAll('img')].filter((img) => {
+    const r = img.getBoundingClientRect();
+    return !img.complete && r.top < innerHeight && r.bottom > 0;
+  });
+  await Promise.race([
+    Promise.all(pending.map((img) => new Promise((r) => { img.onload = img.onerror = r; }))),
+    new Promise((r) => setTimeout(r, 2000)),
+  ]);
+  await nextFrame();
+}
+
+async function sample(variant, count, breakpoints) {
+  host.innerHTML = ssrMarkup(count, breakpoints); // fresh "SSR" DOM
+  await settle();
+  const imgs = host.querySelectorAll('img');
+  const write = VARIANTS[variant];
+  let mutations = 0;
+  const mo = new MutationObserver((records) => { mutations += records.length; });
+  mo.observe(host, {attributes: true, subtree: true});
+
+  const t0 = performance.now();
+  for (let i = 0; i < imgs.length; i++) {
+    for (const [name, value] of directiveAttributes(i, breakpoints)) write(imgs[i], name, value);
+  }
+  const t1 = performance.now();
+  void document.body.offsetHeight; // force the style/layout work the writes invalidated
+  const t2 = performance.now();
+  await microtasks(); // let image "update the image data" tasks run
+  const t3 = performance.now();
+
+  mutations += mo.takeRecords().length;
+  mo.disconnect();
+  return {writes: t1 - t0, layout: t2 - t1, total: t3 - t0, mutations};
+}
+
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[s.length >> 1]; };
+
+async function runBench({images = 200, breakpoints = 16, samples = 15, breakdown = false} = {}) {
+  const bps = breakpointsFor(breakpoints);
+  const names = breakdown ? BREAKDOWN_VARIANTS : MAIN_VARIANTS;
+  const raw = Object.fromEntries(names.map((n) => [n, []]));
+  // Warm-up, then interleave variants so drift affects all equally.
+  for (const n of names) await sample(n, images, bps);
+  for (let s = 0; s < samples; s++) {
+    for (const n of s % 2 ? [...names].reverse() : names) raw[n].push(await sample(n, images, bps));
+  }
+  host.innerHTML = '';
+  const srcsetLen = directiveAttributes(0, bps).find(([k]) => k === 'srcset')[1].length;
+  const results = {};
+  for (const n of names) {
+    results[n] = {
+      writes: median(raw[n].map((r) => r.writes)),
+      layout: median(raw[n].map((r) => r.layout)),
+      total: median(raw[n].map((r) => r.total)),
+      mutations: raw[n][0].mutations,
+    };
+  }
+  return {config: {images, breakpoints, samples, srcsetChars: srcsetLen, userAgent: navigator.userAgent}, results};
+}
+window.runBench = runBench;
+
+// --- Trace mode (driven by trace-headless.mjs) -------------------------------------------------
+// prepareSample() builds and settles the "SSR" DOM; the runner then starts a Chrome trace and calls
+// hydrateSample(), which replays the directive's writes and then lets the browser run naturally
+// (no forced layout) for a few frames, so the trace captures every follow-up effect.
+let prepared = null;
+async function prepareSample({images = 200, breakpoints = 16, slow = false, nonce = ''} = {}) {
+  const bps = breakpointsFor(breakpoints);
+  urlPrefix = slow ? `slow/${nonce}/` : '';
+  host.innerHTML = ssrMarkup(images, bps);
+  if (slow) {
+    // Let the browser start the downloads, but hydrate before they finish.
+    await nextFrame();
+    await nextFrame();
+    await new Promise((r) => setTimeout(r, 100));
+  } else {
+    await settle();
+  }
+  prepared = {bps};
+}
+
+async function hydrateSample(variant) {
+  const {bps} = prepared;
+  const imgs = [...host.querySelectorAll('img')];
+  const write = VARIANTS[variant];
+  const before = imgs.map((img) => img.currentSrc);
+  const completeBefore = imgs.filter((img) => img.complete && img.naturalWidth).length;
+  let loads = 0, errors = 0, lcp = 0, mutations = 0;
+  const onLoad = (e) => { if (e.target instanceof HTMLImageElement) loads++; };
+  const onError = (e) => { if (e.target instanceof HTMLImageElement) errors++; };
+  host.addEventListener('load', onLoad, true);
+  host.addEventListener('error', onError, true);
+  const mo = new MutationObserver((r) => { mutations += r.length; });
+  mo.observe(host, {attributes: true, subtree: true});
+  let po;
+  try {
+    po = new PerformanceObserver((list) => { lcp += list.getEntries().length; });
+    po.observe({type: 'largest-contentful-paint'});
+  } catch {}
+
+  performance.mark('hydrate-start');
+  for (let i = 0; i < imgs.length; i++) {
+    for (const [name, value] of directiveAttributes(i, bps)) write(imgs[i], name, value);
+  }
+  performance.mark('hydrate-writes-done');
+  for (let f = 0; f < 3; f++) await nextFrame();
+  await new Promise((r) => setTimeout(r, 300));
+  performance.mark('hydrate-end');
+
+  mutations += mo.takeRecords().length;
+  mo.disconnect();
+  po?.disconnect();
+  host.removeEventListener('load', onLoad, true);
+  host.removeEventListener('error', onError, true);
+  return {
+    loads, errors, lcp, mutations, completeBefore,
+    currentSrcChanged: imgs.filter((img, i) => img.currentSrc !== before[i]).length,
+  };
+}
+window.prepareSample = prepareSample;
+window.hydrateSample = hydrateSample;
+
+// --- UI --------------------------------------------------------------------------------------
+const fmt = (x) => x.toFixed(2);
+function render({config, results}) {
+  const base = results[BASE].total;
+  const rows = Object.entries(results).map(([n, r]) => {
+    const pct = ((1 - r.total / base) * 100);
+    const ref = n === BASE || n === 'compute only';
+    const cls = ref ? '' : pct > 0 ? 'good' : 'bad';
+    return `<tr><td>${n}</td><td>${fmt(r.writes)}</td><td>${fmt(r.layout)}</td><td>${fmt(r.total)}</td>
+      <td class="${cls}">${ref ? '—' : (pct > 0 ? '−' : '+') + Math.abs(pct).toFixed(0) + '%'}</td><td>${r.mutations}</td></tr>`;
+  }).join('');
+  document.getElementById('out').innerHTML = `
+    <p>${config.images} images × ${config.breakpoints} breakpoints (srcset = ${config.srcsetChars} chars each),
+       median of ${config.samples} samples, times in ms.</p>
+    <div class="table-wrap"><table>
+      <tr><th>variant</th><th>attribute writes</th><th>forced style/layout</th><th>total incl. tasks</th><th>vs current</th><th>DOM mutations</th></tr>
+      ${rows}
+    </table></div>`;
+}
+
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const opts = Object.fromEntries([...fd].map(([k, v]) => [k, Number(v)]));
+  document.getElementById('out').innerHTML = '<p>Running…</p>';
+  document.getElementById('sample').textContent =
+    'srcset of image 0:\n' + directiveAttributes(0, breakpointsFor(opts.breakpoints)).find(([k]) => k === 'srcset')[1];
+  render(await runBench(opts));
+});
+</script>
+</body>
+</html>

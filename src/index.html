@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NgOptimizedImage hydration repro</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Benchmark instrumentation only (read by bench/run.mjs through window.__bench); the app
+    // renders the same without it. Counts what happens to <img> elements once hydration starts.
+    (function () {
+      var b = (window.__bench = {
+        hydrating: false,
+        imagesLoadedAtBootstrap: 0,
+        imgLoadEvents: 0,
+        attrWrites: 0,
+        imgAttrWrites: 0,
+        mutatedAttrs: {},
+        loadHandlerCalls: {},
+        rendersAfterStable: 0,
+        stable: false,
+      });
+      b.done = new Promise(function (resolve) { b.resolveDone = resolve; });
+      b.onBootstrapStart = function () {
+        b.hydrating = true;
+        b.imagesLoadedAtBootstrap = Array.prototype.filter.call(document.images, function (img) {
+          return img.complete && img.naturalWidth > 0;
+        }).length;
+        performance.mark('bootstrap-start');
+      };
+      b.onAppStable = function () {
+        performance.mark('app-stable');
+        b.stable = true;
+        // Let the follow-up work (load events, re-renders, style, paint) happen, then stop.
+        var frames = 3;
+        (function next() {
+          requestAnimationFrame(function () {
+            setTimeout(function () {
+              if (--frames > 0) return next();
+              setTimeout(function () {
+                performance.mark('bench-end');
+                b.resolveDone(b.summary());
+              }, 300);
+            });
+          });
+        })();
+      };
+      b.onRender = function () { if (b.stable) b.rendersAfterStable++; };
+      b.onLoadHandler = function (id) { b.loadHandlerCalls[id] = (b.loadHandlerCalls[id] || 0) + 1; };
+      document.addEventListener('load', function (e) {
+        if (b.hydrating && e.target instanceof HTMLImageElement) b.imgLoadEvents++;
+      }, true);
+      // `?inspect`: also record every <img> attribute write. Only used for the untimed inspection
+      // load (bench/inspect.mjs, and once per variant in bench/run.mjs): the observer itself costs
+      // time proportional to the number of writes, so it must not run in the timed page loads.
+      if (/[?&]inspect\b/.test(location.search)) {
+        new MutationObserver(function (records) {
+          if (!b.hydrating) return;
+          // Records arrive in batches: the value a record wrote is the oldValue of the next record
+          // for the same element + attribute, or the current value for the last one. Walk backwards.
+          var written = new Map();
+          for (var i = records.length - 1; i >= 0; i--) {
+            var r = records[i];
+            if (r.target.nodeType !== 1) continue;
+            var name = r.attributeName;
+            var perEl = written.get(r.target) || written.set(r.target, {}).get(r.target);
+            var value = name in perEl ? perEl[name] : r.target.getAttribute(name);
+            perEl[name] = r.oldValue;
+            b.attrWrites++;
+            if (r.target instanceof HTMLImageElement) b.imgAttrWrites++;
+            var m = (b.mutatedAttrs[name] = b.mutatedAttrs[name] || {count: 0, sameValue: 0, example: null});
+            m.count++;
+            if (value === r.oldValue) m.sameValue++;
+            else if (!m.example) m.example = {from: r.oldValue, to: value};
+          }
+        }).observe(document, {attributes: true, attributeOldValue: true, subtree: true});
+      }
+      // `?inspect`: a stable serialization of the hydrated DOM (attributes sorted, `(load)` badges
+      // skipped since their counts legitimately differ), to check that variants end up identical.
+      b.serializeDom = function () {
+        var out = [];
+        (function walk(node) {
+          if (node.nodeType === 3) { if (node.data.trim()) out.push(JSON.stringify(node.data.trim())); return; }
+          if (node.nodeType !== 1 || node.hasAttribute('data-digest-ignore')) return;
+          var attrs = Array.prototype.map.call(node.attributes, function (a) {
+            return a.name + '=' + JSON.stringify(a.value);
+          }).sort();
+          out.push('<' + node.localName + (attrs.length ? ' ' + attrs.join(' ') : '') + '>');
+          Array.prototype.forEach.call(node.childNodes, walk);
+          out.push('</' + node.localName + '>');
+        })(document.querySelector('app-root'));
+        return out.join('\n');
+      };
+      b.summary = function () {
+        var calls = Object.keys(b.loadHandlerCalls).map(function (k) { return b.loadHandlerCalls[k]; });
+        var measure = performance.measure('hydration', 'bootstrap-start', 'app-stable');
+        return {
+          hydrationMs: measure.duration,
+          imagesLoadedAtBootstrap: b.imagesLoadedAtBootstrap,
+          imgLoadEvents: b.imgLoadEvents,
+          attrWrites: b.attrWrites,
+          imgAttrWrites: b.imgAttrWrites,
+          mutatedAttrs: b.mutatedAttrs,
+          loadHandlerCalls: calls.reduce(function (a, c) { return a + c; }, 0),
+          imagesWithHandlerCalledTwice: calls.filter(function (c) { return c > 1; }).length,
+          rendersAfterStable: b.rendersAfterStable,
+          dom: /[?&]inspect\b/.test(location.search) ? b.serializeDom() : null,
+        };
+      };
+    })();
+  </script>
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>
