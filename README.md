@@ -49,18 +49,18 @@ Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.w
 
 | Page and CPU | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|
-| Image grid, no throttling | 35.0 ms | 27.7 ms (−21%) | 32.6 ms (−7%) | 26.3 ms (−25%) |
-| Image grid, 4× CPU throttling | 242.4 ms | 193.2 ms (−20%) | 234.6 ms (−3%) | 189.6 ms (−22%) |
-| Bound image grid, no throttling | 21.9 ms | 9.9 ms (−55%) | 22.2 ms (+1%) | 9.3 ms (−58%) |
-| Bound image grid, 4× CPU throttling | 161.2 ms | 61.7 ms (−62%) | 165.3 ms (+3%) | 58.4 ms (−64%) |
-| Table, no throttling | 22.7 ms | 22.2 ms (−2%) | 9.7 ms (−57%) | 9.5 ms (−58%) |
-| Table, 4× CPU throttling | 158.5 ms | 159.7 ms (+1%) | 61.8 ms (−61%) | 60.5 ms (−62%) |
+| Image grid, no throttling | 35.5 ms | 29.0 ms (−18%) | 33.0 ms (−7%) | 26.8 ms (−25%) |
+| Image grid, 4× CPU throttling | 241.7 ms | 196.6 ms (−19%) | 233.2 ms (−4%) | 186.5 ms (−23%) |
+| Bound image grid, no throttling | 22.2 ms | 9.5 ms (−57%) | 23.1 ms (+4%) | 9.9 ms (−55%) |
+| Bound image grid, 4× CPU throttling | 160.4 ms | 61.1 ms (−62%) | 162.9 ms (+2%) | 59.6 ms (−63%) |
+| Table, no throttling | 22.6 ms | 22.3 ms (−1%) | 9.9 ms (−56%) | 9.8 ms (−57%) |
+| Table, 4× CPU throttling | 159.3 ms | 160.0 ms (0%) | 59.5 ms (−63%) | 60.0 ms (−62%) |
 
 The two fixes help different pages. Differences of a few percent are within the variation between runs.
 
 | Page | Measure | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|---|
-| Image grid | Attribute writes | 3,637 | 2,033 | 2,432 | 824 |
+| Image grid | Attribute writes | 3,637 | 2,033 | 2,432 | 798 |
 | Image grid | `load` events fired again | 30 | 30 | 30 | 26 |
 | Image grid | `(load)` handler calls for 30 loaded images | 60 | 60 | 60 | 56 |
 | Bound image grid | Attribute writes | 3,037 | 1,207 | 2,236 | 406 |
@@ -70,6 +70,19 @@ The two fixes help different pages. Differences of a few percent are within the 
 | Table | Elements restyled after hydration | 1,247 | 1,245 | 45 | 43 |
 
 The complete output is in [`results/timings.txt`](results/timings.txt) and [`results/dom-writes.txt`](results/dom-writes.txt). In every build and on every page, the DOM after hydration is the same as in `stock`, apart from two things that the comparison ignores on purpose. Those are the `(load)` counters on the image grid and the marker that `/media` sets on a restarted video.
+
+## What happens to event handlers
+
+A handler can depend on these repeated writes without anyone intending it. The core fix adds the media events below to event replay, so a handler still runs when its event fired before hydration: `loadstart`, `durationchange`, `loadedmetadata`, `loadeddata`, `canplay`, `canplaythrough`, `play`, and `playing`. [`results/events.txt`](results/events.txt) has handler calls with event replay on, which is the default, and off:
+
+| Build and event replay | Plain `<img>` `(load)` | Video `(canplay)` |
+|---|---|---|
+| `stock`, on | 2 | 1 |
+| `core-fix`, on | 1 | 1 |
+| `stock`, off | 1 | 1 |
+| `core-fix`, off | 0 | 0 |
+
+With event replay off, a handler runs today only because the write fires the event again.
 
 ## Run it yourself
 
@@ -95,6 +108,7 @@ You need Google Chrome and a Node.js version that Angular CLI 22.2 supports (`^2
    ```sh
    npm run check:videos   # Do the videos restart? (about 30 seconds)
    npm run check:writes   # Which attributes are written, and is the final DOM the same?
+   npm run check:events   # How many times do the event handlers run?
    npm run bench          # Hydration time (about 10 minutes)
    ```
 

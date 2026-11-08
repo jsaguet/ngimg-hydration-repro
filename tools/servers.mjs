@@ -5,11 +5,11 @@ import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-export async function startServers(names, firstPort) {
+export async function startServers(names, firstPort, env = {}) {
   const variants = names.map((name, i) => ({name, port: firstPort + i}));
   const servers = variants.map(({name, port}) =>
     spawn(process.execPath, [join(root, 'dist', name, 'server', 'server.mjs')], {
-      env: {...process.env, PORT: String(port)},
+      env: {...process.env, ...env, PORT: String(port)},
       stdio: 'ignore',
     }));
   const stop = () => servers.forEach((server) => server.kill());

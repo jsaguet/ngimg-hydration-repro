@@ -17,6 +17,17 @@ const pkgDir = (name) => dirname(require.resolve(`${name}/package.json`));
 const COMMON = join(pkgDir('@angular/common'), 'fesm2022/common.mjs');
 const CORE = join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs');
 
+const PRIMITIVES = join(pkgDir('@angular/core'), 'fesm2022/primitives-event-dispatch.mjs');
+const MEDIA_EVENTS = `'loadstart', 'durationchange', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'play', 'playing'`;
+const MEDIA_EVENT_EDITS = [
+  [PRIMITIVES, `'ended', 'loadedmetadata', 'pagehide'`, `'ended', 'pagehide'`],
+  [
+    PRIMITIVES,
+    `const CAPTURE_EVENT_TYPES = [EventType.FOCUS, EventType.BLUR, EventType.ERROR, EventType.LOAD, EventType.TOGGLE];`,
+    `const CAPTURE_EVENT_TYPES = [EventType.FOCUS, EventType.BLUR, EventType.ERROR, EventType.LOAD, EventType.TOGGLE, ${MEDIA_EVENTS}];`,
+  ],
+];
+
 // Each edit is [file, published code, patched code].
 const FIXES = {
   directive: [
@@ -31,8 +42,26 @@ const FIXES = {
     }
   }`,
     ],
+    [
+      COMMON,
+      `    this.destroyRef.onDestroy(() => {
+      removeLoadListenerFn();
+      removeErrorListenerFn();
+    });
+    callOnLoadIfImageIsLoaded(img, callback);
+  }`,
+      `    this.destroyRef.onDestroy(() => {
+      removeLoadListenerFn();
+      removeErrorListenerFn();
+    });
+    callOnLoadIfImageIsLoaded(img, callback);
+    if (img.complete && !img.naturalWidth && img.currentSrc) {
+      callback();
+    }
+  }`,
+    ],
   ],
-  core: coreEdits([
+  core: [...coreEdits([
       // Static attributes, class and style.
       [
         `    setupStaticAttributes(lView[RENDERER], native, tNode);
@@ -132,11 +161,11 @@ function isDomPropertyUnchanged(element, propName, value) {
   }
   return URL_PROPERTIES.test(propName)
     ? value != null && element.getAttribute(propName.toLowerCase()) === String(value)
-    : element[propName] === value;
+    : element.hasAttribute(propName.toLowerCase()) && element[propName] === value;
 }
 function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
       ],
-  ]),
+  ]), ...MEDIA_EVENT_EDITS],
 };
 
 function coreEdits(edits) {

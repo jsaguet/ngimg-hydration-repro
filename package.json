@@ -12,7 +12,8 @@
     "serve:both-fixes": "node dist/both-fixes/server/server.mjs",
     "check:videos": "node bench/media.mjs",
     "check:writes": "node bench/inspect.mjs",
-    "bench": "node bench/run.mjs"
+    "bench": "node bench/run.mjs",
+    "check:events": "node bench/events.mjs"
   },
   "private": true,
   "packageManager": "npm@11.20.0",

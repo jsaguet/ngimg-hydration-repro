@@ -16,7 +16,8 @@ import {Component, inject, PLATFORM_ID} from '@angular/core';
       <li>
         <span>static <code>src="…"</code></span>
         <small class="status"></small>
-        <video data-case="static" src="clip.webm" autoplay muted loop playsinline preload="auto" width="320" height="180"></video>
+        <img src="/img/plain.jpg" width="40" height="40" alt="" (load)="count('load')" />
+        <video data-case="static" (canplay)="count('canplay')" src="clip.webm" autoplay muted loop playsinline preload="auto" width="320" height="180"></video>
       </li>
       <li>
         <span>property binding <code>[src]</code></span>
@@ -46,6 +47,12 @@ import {Component, inject, PLATFORM_ID} from '@angular/core';
   `,
 })
 export class MediaPage {
+  /** Handler calls, read by `bench/events.mjs`. */
+  protected count(name: string) {
+    const w = window as unknown as {__handlers?: Record<string, number>};
+    w.__handlers = {...w.__handlers, [name]: (w.__handlers?.[name] ?? 0) + 1};
+  }
+
   protected readonly clip = 'clip.webm';
   protected readonly platform = isPlatformBrowser(inject(PLATFORM_ID)) ? 'browser' : 'server';
   protected readonly platformClip = `clip.webm?rendered-on=${this.platform}`;
