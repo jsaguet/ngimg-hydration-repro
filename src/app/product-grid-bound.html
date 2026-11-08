@@ -1,0 +1,23 @@
+<header>
+  <h1>NgOptimizedImage hydration repro (bound attributes)</h1>
+  <p>{{ products.length }} server-rendered <code>NgOptimizedImage</code> cards with a responsive
+    <code>srcset</code> (16 breakpoints). The badge counts how many times the <code>(load)</code>
+    handler ran for each image.</p>
+</header>
+<ul class="grid">
+  @for (product of products; track product.id) {
+    <li>
+      <img
+        [ngSrc]="product.image"
+        [width]="400"
+        [height]="600"
+        [priority]="$index < priorityCount"
+        [sizes]="sizes"
+        (load)="onImageLoad(product)"
+        alt=""
+      />
+      <span class="name">{{ product.name }}</span>
+      <span class="badge" [class.twice]="product.loadCalls() > 1" data-digest-ignore>(load) × {{ product.loadCalls() }}</span>
+    </li>
+  }
+</ul>

@@ -17,6 +17,7 @@ const chromePath = args.find((a) => !a.startsWith('--'));
 
 const SCENARIOS = [
   {name: 'image grid: 200 NgOptimizedImage, static width/height/sizes', path: '/?bootAfterLoad'},
+  {name: 'bound image grid: same grid, [width]/[height]/[sizes] bindings', path: '/bound?bootAfterLoad'},
   {name: 'data table: 300 rows of static markup, 2 images', path: '/table'},
 ];
 

@@ -36,3 +36,17 @@ export class ProductGrid {
     benchHooks()?.onLoadHandler(product.id);
   }
 }
+
+/**
+ * The same grid with `width`, `height`, and `sizes` bound to the inputs of the directive. Angular
+ * doesn't write bound inputs to the DOM, so only the directive writes these attributes.
+ */
+@Component({
+  selector: 'app-product-grid-bound',
+  imports: [NgOptimizedImage],
+  templateUrl: './product-grid-bound.html',
+  styleUrl: './product-grid.css',
+})
+export class ProductGridBound extends ProductGrid {
+  protected readonly sizes = '(max-width: 640px) 50vw, (max-width: 1200px) 33vw, 25vw';
+}

@@ -7,7 +7,7 @@ This repository reproduces the problems in an Angular 22.2.5 server-rendered app
 | Fix | Issue | Pull request |
 |---|---|---|
 | Core: don't write unchanged values on hydrated nodes | [#71872](https://github.com/angular/angular/issues/71872) | [#71874](https://github.com/angular/angular/pull/71874) |
-| `NgOptimizedImage`: don't write unchanged attributes, and stop changing `sizes` twice | [#71873](https://github.com/angular/angular/issues/71873) | [#71875](https://github.com/angular/angular/pull/71875) |
+| `NgOptimizedImage`: don't write unchanged attributes | [#71873](https://github.com/angular/angular/issues/71873) | [#71875](https://github.com/angular/angular/pull/71875) |
 
 ## Hydration restarts playing videos
 
@@ -32,10 +32,16 @@ The result depends on the core fix only. [`results/media.txt`](results/media.txt
 
 The `/` page shows 200 `NgOptimizedImage` images with a responsive `srcset` and a `(load)` handler. Two things happen to each image during hydration:
 
-- `NgOptimizedImage` writes `src`, `srcset`, and its other attributes again, with the values that the server rendered.
-- Angular writes `width`, `height`, and `sizes` from the template. On a lazy image the server rendered `sizes="auto, …"`, so Angular removes `auto`, and the directive then adds it back.
+- `NgOptimizedImage` writes `src`, `srcset`, and its other attributes again, with the values that the server rendered. The directive fix removes these writes.
+- Angular writes `width`, `height`, and `sizes` from the template.
 
-Each write to one of these attributes makes the browser select the source again. The browser also fires `load` again on images that loaded before hydration. Angular's event replay already delivers the original `load` event, so a `(load)` handler runs twice on those images. With the fixes it runs once.
+Each write to one of these attributes makes the browser select the source again. The browser also fires `load` again on images that loaded before hydration. Angular's event replay already delivers the original `load` event, so a `(load)` handler runs twice on those images.
+
+### The `sizes` value changes twice on lazy images
+
+`NgOptimizedImage` prepends `auto` to `sizes` on lazy images, so the server HTML has `sizes="auto, 50vw"` when the template has `sizes="50vw"`. During hydration, Angular writes the template value, and the directive then writes `auto, 50vw` back. Neither fix removes these two writes, because each of them really changes the value. This happens only on a lazy image with a static `sizes` attribute.
+
+The `/bound` page has the same images with `[width]`, `[height]`, and `[sizes]` bindings. Angular doesn't write bound directive inputs to the DOM, so the flip disappears. With the directive fix, `load` no longer fires again on that page, and the handler runs once.
 
 ## What the fixes change
 
@@ -43,20 +49,25 @@ Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.w
 
 | Page and CPU | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|
-| Image grid, no throttling | 39.0 ms | 13.5 ms (−65%) | 40.7 ms (+4%) | 12.5 ms (−68%) |
-| Image grid, 4× CPU throttling | 258.3 ms | 69.3 ms (−73%) | 244.5 ms (−5%) | 68.7 ms (−73%) |
-| Table, no throttling | 26.2 ms | 26.2 ms (0%) | 12.4 ms (−53%) | 11.8 ms (−55%) |
-| Table, 4× CPU throttling | 171.3 ms | 167.0 ms (−3%) | 66.6 ms (−61%) | 65.8 ms (−62%) |
+| Image grid, no throttling | 35.0 ms | 27.7 ms (−21%) | 32.6 ms (−7%) | 26.3 ms (−25%) |
+| Image grid, 4× CPU throttling | 242.4 ms | 193.2 ms (−20%) | 234.6 ms (−3%) | 189.6 ms (−22%) |
+| Bound image grid, no throttling | 21.9 ms | 9.9 ms (−55%) | 22.2 ms (+1%) | 9.3 ms (−58%) |
+| Bound image grid, 4× CPU throttling | 161.2 ms | 61.7 ms (−62%) | 165.3 ms (+3%) | 58.4 ms (−64%) |
+| Table, no throttling | 22.7 ms | 22.2 ms (−2%) | 9.7 ms (−57%) | 9.5 ms (−58%) |
+| Table, 4× CPU throttling | 158.5 ms | 159.7 ms (+1%) | 61.8 ms (−61%) | 60.5 ms (−62%) |
 
-The two fixes help different pages, so each row has one fix that matters. Differences of a few percent are within the variation between runs.
+The two fixes help different pages. Differences of a few percent are within the variation between runs.
 
 | Page | Measure | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|---|
-| Image grid | Attribute writes | 3,637 | 1,207 | 2,432 | 406 |
-| Image grid | `load` events fired again | 30 | 0 | 30 | 0 |
-| Image grid | `(load)` handler calls for 30 loaded images | 60 | 30 | 60 | 30 |
-| Table | Attribute writes | 12,961 | 12,941 | 365 | 349 |
-| Table | Elements restyled after hydration | 1,247 | 1,243 | 45 | 43 |
+| Image grid | Attribute writes | 3,637 | 2,033 | 2,432 | 824 |
+| Image grid | `load` events fired again | 30 | 30 | 30 | 26 |
+| Image grid | `(load)` handler calls for 30 loaded images | 60 | 60 | 60 | 56 |
+| Bound image grid | Attribute writes | 3,037 | 1,207 | 2,236 | 406 |
+| Bound image grid | `load` events fired again | 30 | 0 | 30 | 0 |
+| Bound image grid | `(load)` handler calls for 30 loaded images | 60 | 30 | 60 | 30 |
+| Table | Attribute writes | 12,961 | 12,945 | 365 | 349 |
+| Table | Elements restyled after hydration | 1,247 | 1,245 | 45 | 43 |
 
 The complete output is in [`results/timings.txt`](results/timings.txt) and [`results/dom-writes.txt`](results/dom-writes.txt). In every build and on every page, the DOM after hydration is the same as in `stock`, apart from two things that the comparison ignores on purpose. Those are the `(load)` counters on the image grid and the marker that `/media` sets on a restarted video.
 

@@ -11,6 +11,7 @@ const chromePath = process.argv[2];
 teeConsole(fileURLToPath(new URL('../results/dom-writes.txt', import.meta.url)));
 const PAGES = [
   {name: 'image grid: 200 NgOptimizedImage, static width/height/sizes', path: '/?bootAfterLoad&inspect'},
+  {name: 'bound image grid: same grid, [width]/[height]/[sizes] bindings', path: '/bound?bootAfterLoad&inspect'},
   {name: 'data table: 300 rows of static markup, 2 images', path: '/table?bootAfterLoad&inspect'},
   {name: 'media: videos, and values that differ between server and browser', path: '/media?bootAfterLoad&inspect'},
 ];

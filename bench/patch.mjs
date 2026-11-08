@@ -1,8 +1,7 @@
 // Applies the two fixes to the published Angular bundles in node_modules, so that the app can be
 // built with and without them. Each edit reproduces the matching change on the angular repo:
 //
-//   directive  packages/common/src/directives/ng_optimized_image/ng_optimized_image.ts and
-//              packages/core/src/render3/view/elements.ts
+//   directive  packages/common/src/directives/ng_optimized_image/ng_optimized_image.ts
 //   core       packages/core/src/render3 (instructions/shared.ts, instructions/aria_property.ts,
 //              dom_node_manipulation.ts, util/attrs_utils.ts)
 //
@@ -18,19 +17,6 @@ const pkgDir = (name) => dirname(require.resolve(`${name}/package.json`));
 const COMMON = join(pkgDir('@angular/common'), 'fesm2022/common.mjs');
 const CORE = join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs');
 
-const SIZES_WRITE = `    if (this.sizes) {
-      if (this.getLoadingBehavior() === 'lazy') {
-        this.setHostAttribute('sizes', 'auto, ' + this.sizes);
-      } else {
-        this.setHostAttribute('sizes', this.sizes);
-      }
-    } else {
-      if (this.ngSrcset && VALID_WIDTH_DESCRIPTOR_SRCSET.test(this.ngSrcset) && this.getLoadingBehavior() === 'lazy') {
-        this.setHostAttribute('sizes', 'auto, 100vw');
-      }
-    }`;
-const SRC_WRITE = `    const rewrittenSrcset = this.updateSrcAndSrcset();`;
-
 // Each edit is [file, published code, patched code].
 const FIXES = {
   directive: [
@@ -43,45 +29,6 @@ const FIXES = {
     if (this.imgElement.getAttribute(name) !== value) {
       this.renderer.setAttribute(this.imgElement, name, value);
     }
-  }`,
-    ],
-    [COMMON, `class NgOptimizedImage {`, `class NgOptimizedImage {
-  static ɵmanagedHostAttributes = ['width', 'height', 'sizes'];`],
-    [COMMON, `${SRC_WRITE}
-${SIZES_WRITE}`, `${SIZES_WRITE}
-${SRC_WRITE}`],
-    [
-      CORE,
-      `  tNode.mergedAttrs = mergeHostAttrs(tNode.mergedAttrs, tNode.attrs);
-  if (tNode.attrs !== null) {
-    computeStaticStyling(tNode, tNode.attrs, false);
-  }`,
-      `  tNode.mergedAttrs = mergeHostAttrs(tNode.mergedAttrs, tNode.attrs);
-  {
-    const managedAttrs = tNode.mergedAttrs;
-    const templateAttrs = tNode.attrs;
-    if (managedAttrs !== null && templateAttrs !== null) {
-      for (let i = tNode.directiveStart; i < tNode.directiveEnd; i++) {
-        const managed = tView.data[i].type.ɵmanagedHostAttributes;
-        if (managed === undefined) continue;
-        let index = 0;
-        while (index < managedAttrs.length && typeof managedAttrs[index] === 'string') {
-          const name = managedAttrs[index];
-          let inTemplate = false;
-          for (let t = 0; t < templateAttrs.length && typeof templateAttrs[t] === 'string'; t += 2) {
-            if (templateAttrs[t] === name) inTemplate = true;
-          }
-          if (managed.includes(name) && inTemplate) {
-            managedAttrs.splice(index, 2);
-          } else {
-            index += 2;
-          }
-        }
-      }
-    }
-  }
-  if (tNode.attrs !== null) {
-    computeStaticStyling(tNode, tNode.attrs, false);
   }`,
     ],
   ],
