@@ -59,13 +59,19 @@ ${SRC_WRITE}`],
       `  tNode.mergedAttrs = mergeHostAttrs(tNode.mergedAttrs, tNode.attrs);
   {
     const managedAttrs = tNode.mergedAttrs;
-    if (managedAttrs !== null) {
+    const templateAttrs = tNode.attrs;
+    if (managedAttrs !== null && templateAttrs !== null) {
       for (let i = tNode.directiveStart; i < tNode.directiveEnd; i++) {
         const managed = tView.data[i].type.ɵmanagedHostAttributes;
         if (managed === undefined) continue;
         let index = 0;
         while (index < managedAttrs.length && typeof managedAttrs[index] === 'string') {
-          if (managed.includes(managedAttrs[index])) {
+          const name = managedAttrs[index];
+          let inTemplate = false;
+          for (let t = 0; t < templateAttrs.length && typeof templateAttrs[t] === 'string'; t += 2) {
+            if (templateAttrs[t] === name) inTemplate = true;
+          }
+          if (managed.includes(name) && inTemplate) {
             managedAttrs.splice(index, 2);
           } else {
             index += 2;
@@ -174,7 +180,7 @@ function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false
 }
 const URL_PROPERTIES = /^(src|href|poster|data|action|formAction|cite)$/;
 function isDomPropertyUnchanged(element, propName, value) {
-  if (element.tagName.includes('-')) {
+  if (element.tagName.includes('-') || isAnimationProp(propName)) {
     return false;
   }
   return URL_PROPERTIES.test(propName)

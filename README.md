@@ -35,18 +35,18 @@ The `/` page shows 200 `NgOptimizedImage` images with a responsive `srcset` and 
 - `NgOptimizedImage` writes `src`, `srcset`, and its other attributes again, with the values that the server rendered.
 - Angular writes `width`, `height`, and `sizes` from the template. On a lazy image the server rendered `sizes="auto, …"`, so Angular removes `auto`, and the directive then adds it back.
 
-Each write to one of these attributes makes the browser select the source again and parse the whole `srcset`. The browser also fires `load` again on images that have loaded. Angular's event replay already delivers the original `load` event, so a `(load)` handler runs twice.
+Each write to one of these attributes makes the browser select the source again. The browser also fires `load` again on images that loaded before hydration. Angular's event replay already delivers the original `load` event, so a `(load)` handler runs twice on those images. With the fixes it runs once.
 
 ## What the fixes change
 
-Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.whenStable()`, in headless Chrome 156. Each value is the median of 7 page loads. The `/table` page has 300 rows of static classes, ARIA attributes, and SVG icons, and only 2 images.
+Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.whenStable()`, in headless Chrome 156. Each value is the median of 7 page loads. On the image grid, hydration starts after the window `load` event, so the 30 images in the 1280×900 viewport have loaded before hydration. The `/table` page has 300 rows of static classes, ARIA attributes, and SVG icons, and only 2 images.
 
 | Page and CPU | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|
-| Image grid, no throttling | 42.6 ms | 13.9 ms (−67%) | 41.1 ms (−4%) | 13.4 ms (−69%) |
-| Image grid, 4× CPU throttling | 261.5 ms | 72.1 ms (−72%) | 246.0 ms (−6%) | 64.7 ms (−75%) |
-| Table, no throttling | 25.6 ms | 26.5 ms (+4%) | 13.2 ms (−48%) | 13.5 ms (−47%) |
-| Table, 4× CPU throttling | 173.6 ms | 171.7 ms (−1%) | 68.4 ms (−61%) | 72.2 ms (−58%) |
+| Image grid, no throttling | 39.0 ms | 13.5 ms (−65%) | 40.7 ms (+4%) | 12.5 ms (−68%) |
+| Image grid, 4× CPU throttling | 258.3 ms | 69.3 ms (−73%) | 244.5 ms (−5%) | 68.7 ms (−73%) |
+| Table, no throttling | 26.2 ms | 26.2 ms (0%) | 12.4 ms (−53%) | 11.8 ms (−55%) |
+| Table, 4× CPU throttling | 171.3 ms | 167.0 ms (−3%) | 66.6 ms (−61%) | 65.8 ms (−62%) |
 
 The two fixes help different pages, so each row has one fix that matters. Differences of a few percent are within the variation between runs.
 
@@ -58,11 +58,11 @@ The two fixes help different pages, so each row has one fix that matters. Differ
 | Table | Attribute writes | 12,961 | 12,941 | 365 | 349 |
 | Table | Elements restyled after hydration | 1,247 | 1,243 | 45 | 43 |
 
-The complete output is in [`results/timings.txt`](results/timings.txt) and [`results/dom-writes.txt`](results/dom-writes.txt). In every build and on every page, the DOM after hydration is the same as in `stock`, apart from the `(load)` counters on the image grid, which show the handler calls above.
+The complete output is in [`results/timings.txt`](results/timings.txt) and [`results/dom-writes.txt`](results/dom-writes.txt). In every build and on every page, the DOM after hydration is the same as in `stock`, apart from two things that the comparison ignores on purpose. Those are the `(load)` counters on the image grid and the marker that `/media` sets on a restarted video.
 
 ## Run it yourself
 
-You need Node.js 22 or later and Google Chrome. If Chrome isn't in its default location, set `CHROME_PATH`.
+You need Google Chrome and a Node.js version that Angular CLI 22.2 supports (`^22.22.3`, `^24.15.0`, or `>=26.0.0`). If Chrome isn't in its default location, set `CHROME_PATH`.
 
 1. Install the packages and build the four variants:
 
@@ -86,8 +86,6 @@ You need Node.js 22 or later and Google Chrome. If Chrome isn't in its default l
    npm run check:writes   # Which attributes are written, and is the final DOM the same?
    npm run bench          # Hydration time (about 10 minutes)
    ```
-
-The `bench` script saves one Chrome trace per page and build in `bench/traces/`. To inspect a trace, load it in the Performance panel of Chrome DevTools.
 
 ## How the builds work
 
