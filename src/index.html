@@ -27,7 +27,10 @@
       ['emptied', 'loadstart'].forEach(function (type) {
         document.addEventListener(type, function (e) {
           var id = e.target.getAttribute && e.target.getAttribute('data-case');
-          if (b.hydrating && id && b.media[id]) b.media[id][type]++;
+          if (b.hydrating && id && b.media[id]) {
+            b.media[id][type]++;
+            e.target.closest('li').setAttribute('data-restarted', '');
+          }
         }, true);
       });
       b.onBootstrapStart = function () {
@@ -95,8 +98,10 @@
         var out = [];
         (function walk(node) {
           if (node.nodeType === 3) { if (node.data.trim()) out.push(JSON.stringify(node.data.trim())); return; }
-          if (node.nodeType !== 1 || node.hasAttribute('data-digest-ignore')) return;
-          var attrs = Array.prototype.map.call(node.attributes, function (a) {
+          if (node.nodeType !== 1 || node.hasAttribute("data-digest-ignore")) return;
+          var attrs = Array.prototype.filter.call(node.attributes, function (a) {
+            return a.name !== 'data-restarted';
+          }).map(function (a) {
             return a.name + '=' + JSON.stringify(a.value);
           }).sort();
           out.push('<' + node.localName + (attrs.length ? ' ' + attrs.join(' ') : '') + '>');

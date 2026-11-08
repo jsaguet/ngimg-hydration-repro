@@ -1,231 +1,103 @@
-# NgOptimizedImage hydration repro
+# Angular hydration writes values that the server already rendered
 
-During hydration, `NgOptimizedImage` writes every host attribute (`width`, `height`, `loading`,
-`fetchpriority`, `decoding`, `ng-img`, `src`, `srcset`, `sizes`) again, with exactly the values the
-server already rendered. Writing an identical `src`, `srcset` or `sizes` is not free for the browser:
-each write makes it pick the image again (re-parsing the whole `srcset`), re-request the image from
-its cache, invalidate style, and fire `load` again.
+During hydration, Angular reuses the DOM that the server rendered. It still writes attributes and properties that already have the right value, and the browser reacts to each write. A playing video restarts, and an image selects its source again.
 
-This repo measures that cost in a real Angular 22 SSR app, and the effect of skipping writes whose
-value is unchanged.
+This repository reproduces the problems in an Angular 22.2.5 server-rendered app and measures two fixes:
 
-## The app
-
-Two routes, server-rendered and hydrated with the default `provideClientHydration()` (which in
-Angular 22 includes incremental hydration and therefore event replay). The app is zoneless (CLI
-default).
-
-- `/` **product grid**: 200 `NgOptimizedImage` cards (the first 4 `priority`), each with a
-  responsive `srcset` (`sizes` set, default 16 breakpoints, imgix-style URLs served by the app's own
-  server), and a `(load)` handler on every image, as used to fade images in or hide skeletons. A
-  badge shows how many times it ran.
-- `/bound` **product grid, bound attributes**: the same grid with `[width]="400"`,
-  `[height]="600"` and `[sizes]="sizes"` bound to the directive's inputs instead of written as
-  static attributes.
-- `/table` **data table**: 300 rows of static-heavy markup (static classes, ARIA attributes, inline
-  styles, inline SVG icons, a `[class.x]` binding next to static classes) and only 2 images.
-
-Each build patches the published bundles in `node_modules` (see [`bench/patch.mjs`](bench/patch.mjs))
-and restores them afterwards:
-
-| Build | Change |
-|---|---|
-| `stock` | `@angular/common` / `@angular/core` 22.2.x as published |
-| `fixed` | **The proposed fix**: `NgOptimizedImage#setHostAttribute` skips the write when the element already has that value |
-| `compare` | Exploratory core change, **option B**: on DOM nodes reused from the server, write a template's static attribute / class / style only if the DOM value differs. Same final DOM as today |
-| `fixed+compare` | `fixed` + `compare` |
-| `fixed+compare-inputs` | `fixed` + `compare`, and on reused nodes also leave alone static attributes that a directive on the element takes as an input (`tNode.inputs` / `hostDirectiveInputs`). Fixes the `sizes` conflict, same final DOM as today |
-| `fixed+skip` | `fixed` + exploratory core change, **option A**: on reused nodes, don't write static attributes / class / style at all (static `@animation` triggers are still registered). Changes behavior, see below |
-| `fixed+compare+bindings`, `fixed+compare-inputs+bindings` | + on reused nodes, `[attr.x]` and `[prop]` bindings skip a write whose value the DOM already has: attributes compared with `getAttribute()`, properties with the live property, URL properties (`src`, `href`, `poster`, …) with the attribute, since their getter returns the resolved URL. Same final DOM as today |
-
-`npm run bench:inspect` checks that every build ends with the same hydrated DOM as `stock` (it
-does, on both pages) and lists which attributes each build writes during hydration.
-
-## Results
-
-Headless Chrome 156, warm HTTP cache, median of 7 traced page loads per cell. Hydration = from
-`bootstrapApplication()` until `ApplicationRef.whenStable()`. Main thread = all renderer
-main-thread work from bootstrap until 3 frames + 300 ms after stable. Absolute numbers vary between
-runs; compare within a row. Full output: [`bench/run-output.txt`](bench/run-output.txt).
-
-### Hydration time
-
-| Page, CPU | stock | fixed | compare (B) | fixed+compare | fixed+skip (A) |
-|---|---|---|---|---|---|
-| Grid, images loaded first, 1× | 46.6 ms | 37.5 (−20%) | 40.9 (−12%) | 35.4 (−24%) | 13.3 (−71%) |
-| Grid, hydrate ASAP, 1× | 44.3 ms | 38.3 (−14%) | 41.0 (−7%) | 35.7 (−19%) | 14.3 (−68%) |
-| Grid, images loaded first, 4× | 260 ms | 213 (−18%) | 252 (−3%) | 207 (−20%) | 74 (−71%) |
-| Grid, hydrate ASAP, 4× | 272 ms | 235 (−14%) | 266 (−3%) | 219 (−20%) | 77 (−72%) |
-| Table, 1× | 29.7 ms | 30.1 (+1%) | 15.3 (−48%) | 15.4 (−48%) | 13.2 (−56%) |
-| Table, 4× | 189 ms | 178 (−6%) | 84 (−56%) | 81 (−57%) | 62 (−68%) |
-
-### What the browser does
-
-| | stock | fixed | compare (B) | fixed+compare | fixed+skip (A) |
-|---|---|---|---|---|---|
-| Grid: attribute writes | 3,637 | 2,033 | 2,432 | 824 | 406 |
-| Grid: `load` fired again / `(load)` calls for 30 loaded images | 30 / 60 | 30 / 60 | 30 / 60 | 26 / 56 | 0 / 30 |
-| Grid: elements restyled / paints | 230 / 4 | 230 / 4 | 230 / 4 | 222 / 4 | 0 / 2 |
-| Table: attribute writes | 12,961 | 12,945 | 365 | 349 | 306 |
-| Table: elements restyled / layouts / paints | 1,247 / 1 / 2 | 1,245 / 1 / 2 | 47 / 0 / 2 | 43 / 0 / 0 | 0 / 0 / 0 |
-
-- **Option B roughly halves hydration on static-heavy markup** without changing the final DOM:
-  12,961 → 365 writes on the table page. 99% of today's writes there are identical.
-- **On image pages, B barely helps on its own.** What remains is the `sizes` conflict (point 2
-  below): two real `sizes` changes per lazy image (392 writes), each making Chrome pick the image
-  again and fire `load` again. Removing it is the difference between `fixed+compare` (−20%) and
-  `fixed+skip` (−71%).
-- The remaining `class` writes in B/A come from class *bindings*, not static attributes:
-  `classList.remove()` of a class that isn't there still rewrites the attribute.
-
-### Fixing the `sizes` conflict
-
-`sizes`, `width` and `height` are inputs of `NgOptimizedImage`. Core re-applies them because they
-are written as static attributes; the directive manages them anyway. Two ways around that, both
-measured (full output: [`bench/run-output-inputs.txt`](bench/run-output-inputs.txt),
-[`bench/run-output-bound.txt`](bench/run-output-bound.txt)):
-
-| Hydration (bootstrap → stable) | stock | fixed | fixed+compare | **fixed+compare-inputs** | fixed+skip |
-|---|---|---|---|---|---|
-| Grid, 1× | 49.8 ms | 40.4 (−19%) | 42.6 (−14%) | **15.4 (−69%)** | 14.1 (−72%) |
-| Grid, 4× | 286 ms | 239 (−16%) | 223 (−22%) | **78.5 (−73%)** | 79 (−72%) |
-| Table, 1× | 29.3 ms | 28.7 (−2%) | 13.6 (−54%) | **14.3 (−51%)** | 12.4 (−58%) |
-| Table, 4× | 196 ms | 201 (+2%) | 80.5 (−59%) | **77.4 (−61%)** | 60.4 (−69%) |
-
-- **In core, `compare-inputs`** gets option A's gains on images (no `load` fired again, `(load)`
-  handlers run once) and keeps the static `class`/`style` reset; the final DOM is identical to
-  `stock` on all pages. Applied to *every* directive input, though, it's a breaking change: a
-  directive that reads such an attribute from the DOM at startup would see the server's value
-  instead of the template value, and changes a directive makes only on the server would stay.
-  The safe form is an opt-in, where a directive declares the attributes it manages (for
-  `NgOptimizedImage`: `sizes`, `width`, `height`). In this app, `NgOptimizedImage` is the only
-  directive with such inputs, so the opt-in form would measure the same.
-- **In app code, today:** bind the inputs instead of writing static attributes. With only the
-  `fixed` change, hydration of the grid drops from 38.3 ms to 15.9 ms (−58%, 1× CPU) and from
-  205 ms to 86 ms (4× CPU), no `load` fired again:
-
-  ```html
-  <!-- core writes width, height and sizes again during hydration -->
-  <img ngSrc="…" width="400" height="600" sizes="(max-width: 640px) 50vw, 25vw" />
-  <!-- only NgOptimizedImage writes them; with the fix, not at all when unchanged -->
-  <img ngSrc="…" [width]="400" [height]="600" [sizes]="'(max-width: 640px) 50vw, 25vw'" />
-  ```
-
-### Hydration restarts playing videos
-
-`/media` has three autoplaying, muted, looping videos with the same clip, one per way of putting
-`src` on the element, plus a control video whose `src`, `data-platform` and `title` differ between
-server and browser. Hydration starts 1.5 s after load, so they are already playing
-(`npm run bench:media`, 2–3 runs per build, all identical):
-
-| Build | static `src="…"` | `[src]="clip"` | `[attr.src]="clip"` | control (client value ≠ server) |
-|---|---|---|---|---|
-| `stock` | **restarts** (1.4 s → 0.2 s) | **restarts** | **restarts** | restarts, client values applied |
-| `compare` and the other core-only builds | keeps playing (1.4 s → 1.8 s) | **restarts** | **restarts** | restarts, client values applied |
-| `…+bindings` | keeps playing | keeps playing | keeps playing | restarts, client values applied |
-
-Writing `src` again, even with the same value, restarts the media element's load algorithm
-(`emptied`, `loadstart`, position back to 0). Static attributes are written again by core's
-`setupStaticAttributes()` (fixed by `compare`); bindings are written again on their first update
-after hydration (fixed by `…+bindings`). The control video must restart in every build, since its
-source really changes, and it does. The same write makes an `<iframe>` navigate again (checked
-outside Angular in Chrome 156: a new document is loaded).
-
-`core-final` and `fixed+core-final` apply the same logic as the core commit: static values and
-first binding writes are compared on nodes reused during hydration. All three videos keep playing
-with them, the control video still gets the client values, and the final DOM equals `stock` on
-every page. Hydration time ([`bench/run-output-final.txt`](bench/run-output-final.txt)):
-
-| Hydration (bootstrap → stable) | stock | fixed | core-final | fixed+core-final |
-|---|---|---|---|---|
-| Grid, 1× | 39.4 ms | 32.5 (−18%) | 37.4 (−5%) | 30.5 (−23%) |
-| Grid, 4× | 262 ms | 217 (−17%) | 254 (−3%) | 207 (−21%) |
-| Table, 1× | 26.3 ms | 26.0 (−1%) | 12.5 (−52%) | 12.5 (−52%) |
-| Table, 4× | 182 ms | 180 (−1%) | 71.2 (−61%) | 72.5 (−60%) |
-
-The bindings change has no measurable cost ([`bench/run-output-bindings.txt`](bench/run-output-bindings.txt)):
-grid hydration 31.0 → 33.2 ms and 205 → 202 ms (1× / 4× CPU), table 12.8 → 13.7 ms and 69.6 → 70.4 ms,
-within run-to-run noise. These pages have few attribute or property bindings, so it doesn't speed
-them up either; its point is the restart.
-
-The clip is a generated 10 s silent WAV, which Chrome plays in a `<video>` element; the restart
-comes from the element's load algorithm, not from the codec.
-
-### What's going on
-
-1. **`NgOptimizedImage` writes all its host attributes again** (9 per image), always with the
-   values the server rendered. The `fixed` build skips them.
-2. **Core also writes the template's static attributes again on every hydrated element.**
-   `elementLikeStartShared()` calls `setupStaticAttributes()` whether the node was just created or
-   reused from the server HTML. For these images, that's `width`, `height`, `alt` and `sizes`.
-   - Writing `width`, `height` or `sizes` with an identical value still makes Chrome pick the image
-     again and fire `load` again. One such write costs about as much as writing `src` + `srcset` +
-     `sizes` together (see the DOM benchmark below). That's why `fixed` alone saves less than its
-     3,637 → 2,033 drop in writes suggests.
-   - For lazy images it's a real change: the server sends `sizes="auto, <sizes>"`, core writes the
-     plain template value `<sizes>`, then the directive writes `auto, <sizes>` back.
-3. **`load` fires again for every image that already loaded.** Event replay (on by default) already
-   replays the pre-hydration `load` to the `(load)` handler, so the handler runs **twice** per
-   image and triggers an extra render. With `fixed+skip` it runs exactly once.
-4. **No reflow** is caused by the identical writes. The extra cost is script/DOM work, style
-   recalculation, repaint and re-fetching from the memory cache.
-
-Images that are still downloading when hydration runs aren't fetched twice: Chrome reuses the
-request already in flight (see `dom-benchmark/trace-headless.mjs`, "images still downloading").
-
-## Run it
-
-Requires Node 22+ and Google Chrome (set `CHROME_PATH` if it isn't in the default location).
-
-```sh
-npm install
-npm run bench:build     # builds dist/<variant> for every build listed above
-npm run bench           # traced benchmark (≈15 min): prints the tables, writes bench/results.json
-npm run bench:inspect   # one load per build and page: attribute writes, old → new values, final DOM = stock?
-npm run bench:media     # do autoplaying videos restart when the app hydrates?
-```
-
-`npm run bench -- --samples=15 --cpu=1,4,6` changes the sample count and CPU throttling.
-The first traced load of each cell is saved in `bench/traces/` and can be opened in
-DevTools > Performance > Load profile.
-
-To look at it in a browser: `npm run serve:stock` (or `serve:fixed`) and open
-<http://localhost:4000/?bootAfterLoad> or <http://localhost:4000/table>. On the grid, the badges
-show `(load) × 2` for images whose handler ran twice.
-
-## DOM benchmark
-
-[`dom-benchmark/`](dom-benchmark) replays the directive's attribute writes on server-rendered
-`<img>` markup without Angular. It's useful for isolating the cost of each attribute.
-
-```sh
-npm run bench:dom        # write cost: no check vs checking srcset / srcset+src+sizes / all attributes
-npm run bench:dom:trace  # full trace breakdown, images loaded vs still downloading
-node dom-benchmark/serve.mjs 8080   # interactive page at http://localhost:8080/
-```
-
-200 images × 16 breakpoints, Chrome 156:
-
-| Check before writing | Total (ms) | vs no check |
+| Fix | Issue | Pull request |
 |---|---|---|
-| nothing (current) | 14.4 | |
-| `srcset` only | 13.2 | −8% |
-| `srcset` + `src` + `sizes` | 7.4 | −49% |
-| all attributes | 6.9 | −52% |
-| (building the strings only, no writes) | 6.5 | |
+| Core: don't write unchanged values on hydrated nodes | ISSUE_CORE | PR_CORE |
+| `NgOptimizedImage`: don't write unchanged attributes, and stop changing `sizes` twice | ISSUE_IMG | PR_IMG |
 
-Writing again just one of `src`, `srcset` or `sizes` costs ~4 ms per 200 images. `width`/`height`
-cost ~0.2 ms; `loading`, `fetchpriority`, `decoding` and `ng-img` are negligible.
+## Hydration restarts playing videos
 
-## Caveats
+The `/media` page has autoplaying videos with a timer in the picture. Hydration starts 3 seconds after the page loads. With the published packages, every timer jumps back to 0 when hydration runs:
 
-- Chrome only, headless, local server. Absolute numbers depend on the machine; compare columns.
-- The patches target the published 22.2.x bundles; `bench/patch.mjs` fails loudly if the code it
-  patches has changed.
-- The core changes (`compare`, `compare-inputs`, `skip`) are exploratory and only patch
-  `elementLikeStartShared` (template elements), not root component hosts. `compare-inputs` relies
-  on directives that take an attribute as an input rendering it the same way on server and client.
-  `skip` changes behavior: server-only classes
-  added through `[class]`/`ngClass` bindings would stay, server-side changes to static attributes
-  would persist, and `(load)` handlers of images that loaded before hydration only run if event
-  replay is on. The table page's DOM matches only because server and client state are the same.
+![With the published Angular packages, each timer shows 0.4 s and each video is marked as restarted](docs/videos-stock.png)
+
+With the fixes, the timers keep counting. The last video is a control. Its `src` differs between the server and the browser, so it must restart.
+
+![With both fixes, the timers show 3.5 s, and only the control video restarted](docs/videos-both-fixes.png)
+
+The result depends on the core fix only. [`results/media.txt`](results/media.txt) has the playback positions:
+
+| Build | `src="…"` | `[src]` | `[attr.src]` | Control |
+|---|---|---|---|---|
+| `stock` | restarts | restarts | restarts | restarts |
+| `directive-fix` | restarts | restarts | restarts | restarts |
+| `core-fix` | keeps playing | keeps playing | keeps playing | restarts |
+| `both-fixes` | keeps playing | keeps playing | keeps playing | restarts |
+
+## `NgOptimizedImage` makes the browser select each image again
+
+The `/` page shows 200 `NgOptimizedImage` images with a responsive `srcset` and a `(load)` handler. Two things happen to each image during hydration:
+
+- `NgOptimizedImage` writes `src`, `srcset`, and its other attributes again, with the values that the server rendered.
+- Angular writes `width`, `height`, and `sizes` from the template. On a lazy image the server rendered `sizes="auto, …"`, so Angular removes `auto`, and the directive then adds it back.
+
+Each write to one of these attributes makes the browser select the source again and parse the whole `srcset`. The browser also fires `load` again on images that have loaded. Angular's event replay already delivers the original `load` event, so a `(load)` handler runs twice.
+
+## What the fixes change
+
+Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.whenStable()`, in headless Chrome 156. Each value is the median of 7 page loads. The `/table` page has 300 rows of static classes, ARIA attributes, and SVG icons, and only 2 images.
+
+| Page and CPU | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
+|---|---|---|---|---|
+| Image grid, no throttling | 42.6 ms | 13.9 ms (−67%) | 41.1 ms (−4%) | 13.4 ms (−69%) |
+| Image grid, 4× CPU throttling | 261.5 ms | 72.1 ms (−72%) | 246.0 ms (−6%) | 64.7 ms (−75%) |
+| Table, no throttling | 25.6 ms | 26.5 ms (+4%) | 13.2 ms (−48%) | 13.5 ms (−47%) |
+| Table, 4× CPU throttling | 173.6 ms | 171.7 ms (−1%) | 68.4 ms (−61%) | 72.2 ms (−58%) |
+
+The two fixes help different pages, so each row has one fix that matters. Differences of a few percent are within the variation between runs.
+
+| Page | Measure | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
+|---|---|---|---|---|---|
+| Image grid | Attribute writes | 3,637 | 1,207 | 2,432 | 406 |
+| Image grid | `load` events fired again | 30 | 0 | 30 | 0 |
+| Image grid | `(load)` handler calls for 30 loaded images | 60 | 30 | 60 | 30 |
+| Table | Attribute writes | 12,961 | 12,941 | 365 | 349 |
+| Table | Elements restyled after hydration | 1,247 | 1,243 | 45 | 43 |
+
+The complete output is in [`results/timings.txt`](results/timings.txt) and [`results/dom-writes.txt`](results/dom-writes.txt). In every build and on every page, the DOM after hydration is the same as in `stock`, apart from the `(load)` counters on the image grid, which show the handler calls above.
+
+## Run it yourself
+
+You need Node.js 22 or later and Google Chrome. If Chrome isn't in its default location, set `CHROME_PATH`.
+
+1. Install the packages and build the four variants:
+
+   ```sh
+   npm ci
+   npm run build:variants
+   ```
+
+2. Start a build, and open <http://localhost:4000/media?bootAfterLoad&bootDelay=3000>. Reload the page to watch the timers:
+
+   ```sh
+   npm run serve:stock
+   ```
+
+   To compare, stop the server and run `npm run serve:both-fixes`.
+
+3. Reproduce the results in `results/`:
+
+   ```sh
+   npm run check:videos   # Do the videos restart? (about 30 seconds)
+   npm run check:writes   # Which attributes are written, and is the final DOM the same?
+   npm run bench          # Hydration time (about 10 minutes)
+   ```
+
+The `bench` script saves one Chrome trace per page and build in `bench/traces/`. To inspect a trace, load it in the Performance panel of Chrome DevTools.
+
+## How the builds work
+
+The app in `src/` is the same in every build. `npm run build:variants` patches the published Angular packages in `node_modules`, builds the app, and restores the packages. [`bench/patch.mjs`](bench/patch.mjs) holds the patches, which contain the same changes as the pull requests.
+
+| Build | Patches |
+|---|---|
+| `stock` | None |
+| `directive-fix` | The `NgOptimizedImage` pull request |
+| `core-fix` | The core pull request |
+| `both-fixes` | Both pull requests |
+
+The measurements come from Chrome only. The video clip is a generated 12-second WebM file (`tools/make-clip.mjs`). The images all come from the app's own server (`/img/*`), so the benchmark doesn't depend on the network.

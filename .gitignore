@@ -43,6 +43,5 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-# Benchmark traces (large; regenerate with npm run bench / bench:dom:trace)
+# Benchmark traces (large)
 /bench/traces
-/dom-benchmark/traces

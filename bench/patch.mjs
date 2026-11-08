@@ -1,18 +1,10 @@
-// Applies / reverts patches to the published Angular bundles in node_modules.
+// Applies the two fixes to the published Angular bundles in node_modules, so that the app can be
+// built with and without them. Each edit reproduces the matching change on the angular repo:
 //
-// Slots (each is either stock or one of its options):
-//   ngimg  on       The proposed fix: NgOptimizedImage#setHostAttribute skips the DOM write when
-//                   the element already has that value (@angular/common).
-//   core   compare  Exploratory, option B: on DOM nodes reused from the server during hydration,
-//                   write a template's static attribute / class / style only if the DOM value
-//                   differs. The final DOM is the same as today; only identical writes are dropped.
-//          compare-inputs  `compare`, and leave alone static attributes a directive takes as an input.
-//          skip     Exploratory, option A: on reused nodes, don't write static attributes / class /
-//                   style at all (static `@animation` triggers are still registered).
-//   bindings on     Exploratory: on reused nodes, [attr.x] and [prop] bindings skip a write whose
-//                   value the DOM already has (needs a core option, which marks reused nodes).
-//   core + bindings  final  The same logic as the commit on the angular repo's
-//                   fix/hydration-skip-unchanged-dom-writes branch, for checking it in a browser.
+//   directive  packages/common/src/directives/ng_optimized_image/ng_optimized_image.ts and
+//              packages/core/src/render3/view/elements.ts
+//   core       packages/core/src/render3 (instructions/shared.ts, instructions/aria_property.ts,
+//              dom_node_manipulation.ts, util/attrs_utils.ts)
 //
 // Usage: node bench/patch.mjs status | apply <variant> | revert
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -23,133 +15,96 @@ import {fileURLToPath} from 'node:url';
 const require = createRequire(import.meta.url);
 const pkgDir = (name) => dirname(require.resolve(`${name}/package.json`));
 
-const CORE_STOCK = `function elementLikeStartShared(tNode, lView, index, name, locateOrCreateNativeNode) {
-  const adjustedIndex = HEADER_OFFSET + index;
-  const tView = lView[TVIEW$1];
-  const native = locateOrCreateNativeNode(tView, lView, tNode, name, index);
-  lView[adjustedIndex] = native;
-  setCurrentTNode(tNode, true);
-  const isElement = tNode.type === 2;
-  if (isElement) {
-    setupStaticAttributes(lView[RENDERER], native, tNode);
-    if (getElementDepthCount() === 0`;
+const COMMON = join(pkgDir('@angular/common'), 'fesm2022/common.mjs');
+const CORE = join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs');
 
-/**
- * The core change on reused nodes: `compare` writes only what differs, `compare-inputs` also leaves
- * alone static attributes that a directive on the element takes as an input (the directive manages
- * them, so the server HTML already has their final value), `skip` writes nothing (except `@` props).
- */
-const corePatched = (mode) => `// ngimg-hydration-repro: exploratory core change (${mode})
-globalThis.__ngimgReproCore = '${mode}';
-function ngimgReproStaticAttributesOnReusedNode(renderer, element, tNode) {
-  const compare = ${mode !== 'skip'};
-  const skipDirectiveInputs = ${mode === 'compare-inputs'};
-  const {mergedAttrs: attrs, classes, styles} = tNode;
-  if (attrs !== null) {
-    let i = 0;
-    while (i < attrs.length) {
-      const value = attrs[i];
-      if (typeof value === 'number') {
-        if (value !== 0) {
-          break;
-        }
-        i++;
-        const namespaceURI = attrs[i++];
-        const attrName = attrs[i++];
-        const attrVal = attrs[i++];
-        // Rare; keep today's behavior in compare mode.
-        if (compare) {
-          renderer.setAttribute(element, attrName, attrVal, namespaceURI);
-        }
+const SIZES_WRITE = `    if (this.sizes) {
+      if (this.getLoadingBehavior() === 'lazy') {
+        this.setHostAttribute('sizes', 'auto, ' + this.sizes);
       } else {
-        const attrName = value;
-        const attrVal = attrs[++i];
-        if (isAnimationProp(attrName)) {
-          renderer.setProperty(element, attrName, attrVal);
-        } else if (skipDirectiveInputs &&
-            (tNode.inputs?.[attrName] || tNode.hostDirectiveInputs?.[attrName])) {
-          // Taken as a directive input: the directive manages this attribute.
-        } else if (compare && element.getAttribute(attrName) !== attrVal) {
-          renderer.setAttribute(element, attrName, attrVal);
+        this.setHostAttribute('sizes', this.sizes);
+      }
+    } else {
+      if (this.ngSrcset && VALID_WIDTH_DESCRIPTOR_SRCSET.test(this.ngSrcset) && this.getLoadingBehavior() === 'lazy') {
+        this.setHostAttribute('sizes', 'auto, 100vw');
+      }
+    }`;
+const SRC_WRITE = `    const rewrittenSrcset = this.updateSrcAndSrcset();`;
+
+// Each edit is [file, published code, patched code].
+const FIXES = {
+  directive: [
+    [
+      COMMON,
+      `  setHostAttribute(name, value) {
+    this.renderer.setAttribute(this.imgElement, name, value);
+  }`,
+      `  setHostAttribute(name, value) {
+    if (this.imgElement.getAttribute(name) !== value) {
+      this.renderer.setAttribute(this.imgElement, name, value);
+    }
+  }`,
+    ],
+    [COMMON, `class NgOptimizedImage {`, `class NgOptimizedImage {
+  static ɵmanagedHostAttributes = ['width', 'height', 'sizes'];`],
+    [COMMON, `${SRC_WRITE}
+${SIZES_WRITE}`, `${SIZES_WRITE}
+${SRC_WRITE}`],
+    [
+      CORE,
+      `  tNode.mergedAttrs = mergeHostAttrs(tNode.mergedAttrs, tNode.attrs);
+  if (tNode.attrs !== null) {
+    computeStaticStyling(tNode, tNode.attrs, false);
+  }`,
+      `  tNode.mergedAttrs = mergeHostAttrs(tNode.mergedAttrs, tNode.attrs);
+  {
+    const managedAttrs = tNode.mergedAttrs;
+    if (managedAttrs !== null) {
+      for (let i = tNode.directiveStart; i < tNode.directiveEnd; i++) {
+        const managed = tView.data[i].type.ɵmanagedHostAttributes;
+        if (managed === undefined) continue;
+        let index = 0;
+        while (index < managedAttrs.length && typeof managedAttrs[index] === 'string') {
+          if (managed.includes(managedAttrs[index])) {
+            managedAttrs.splice(index, 2);
+          } else {
+            index += 2;
+          }
         }
-        i++;
       }
     }
   }
-  if (compare && classes !== null && element.getAttribute('class') !== (classes === '' ? null : classes)) {
-    writeDirectClass(renderer, element, classes);
-  }
-  if (compare && styles !== null && element.getAttribute('style') !== styles) {
-    writeDirectStyle(renderer, element, styles);
-  }
-}
-function elementLikeStartShared(tNode, lView, index, name, locateOrCreateNativeNode) {
-  const adjustedIndex = HEADER_OFFSET + index;
-  const tView = lView[TVIEW$1];
-  const native = locateOrCreateNativeNode(tView, lView, tNode, name, index);
-  lView[adjustedIndex] = native;
-  setCurrentTNode(tNode, true);
-  const isElement = tNode.type === 2;
-  if (isElement) {
-    if (wasLastNodeCreated()) {
-      setupStaticAttributes(lView[RENDERER], native, tNode);
-    } else {
-      ngimgReproStaticAttributesOnReusedNode(lView[RENDERER], native, tNode);
-      // Remember nodes reused from the server, for the \`bindings\` patch.
-      (globalThis.__ngimgReproReused ??= new WeakSet()).add(native);
-    }
-    if (getElementDepthCount() === 0`;
-
-// --- bindings: the first write of [attr.x] and [prop] bindings on reused nodes -------------------
-// Requires a core patch (which marks reused nodes). Compares the DOM before writing: attribute
-// bindings against the attribute; property bindings against the live property, except URL
-// properties, whose getter returns the resolved absolute URL, which are compared against the
-// attribute instead.
-const ATTR_BINDING_STOCK = `    const strValue = sanitizer == null ? renderStringify(value) : sanitizer(value, tagName || '', name);
-    renderer.setAttribute(element, name, strValue, namespace);`;
-const ATTR_BINDING_PATCHED = `    const strValue = sanitizer == null ? renderStringify(value) : sanitizer(value, tagName || '', name);
-    // ngimg-hydration-repro: bindings change
-    if (globalThis.__ngimgReproReused?.has(element) && !namespace && element.getAttribute(name) === strValue) {
-      return;
-    }
-    renderer.setAttribute(element, name, strValue, namespace);`;
-const PROP_BINDING_STOCK = `    value = unwrapImgVideoSrcValue(propName, element, value);
-    renderer.setProperty(element, propName, value);`;
-const PROP_BINDING_PATCHED = `    value = unwrapImgVideoSrcValue(propName, element, value);
-    // ngimg-hydration-repro: bindings change
-    if (globalThis.__ngimgReproReused?.has(element) && ngimgReproSameDomProperty(element, propName, value)) {
-      return;
-    }
-    renderer.setProperty(element, propName, value);`;
-const PROP_HELPER_STOCK = `function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
-const PROP_HELPER_PATCHED = `globalThis.__ngimgReproBindings = 'on';
-const NGIMG_REPRO_URL_PROPS = new Set(['src', 'href', 'poster', 'data', 'action', 'formAction', 'cite']);
-function ngimgReproSameDomProperty(element, propName, value) {
-  if (NGIMG_REPRO_URL_PROPS.has(propName)) {
-    return typeof value === 'string' && element.getAttribute(propName.toLowerCase()) === value;
-  }
-  return element[propName] === value;
-}
-function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
-
-// --- final: mirrors the real change in packages/core/src/render3 ----------------------------------
-const FINAL_STATIC_CALL = CORE_STOCK.replace(
-  'setupStaticAttributes(lView[RENDERER], native, tNode);',
-  'setupStaticAttributes(lView[RENDERER], native, tNode, !wasLastNodeCreated());',
-);
-const SET_UP_ATTRS_SIGNATURE_STOCK = `function setUpAttributes(renderer, native, attrs) {`;
-const SET_UP_ATTRS_SIGNATURE_FINAL = `function setUpAttributes(renderer, native, attrs, skipIfUnchanged = false) {`;
-const SET_UP_ATTRS_WRITE_STOCK = `      if (isAnimationProp(attrName)) {
+  if (tNode.attrs !== null) {
+    computeStaticStyling(tNode, tNode.attrs, false);
+  }`,
+    ],
+  ],
+  core: coreEdits([
+      // Static attributes, class and style.
+      [
+        `    setupStaticAttributes(lView[RENDERER], native, tNode);
+    if (getElementDepthCount() === 0`,
+        `    setupStaticAttributes(lView[RENDERER], native, tNode, !wasLastNodeCreated());
+    if (getElementDepthCount() === 0`,
+      ],
+      [
+        `function setUpAttributes(renderer, native, attrs) {`,
+        `function setUpAttributes(renderer, native, attrs, skipIfUnchanged = false) {`,
+      ],
+      [
+        `      if (isAnimationProp(attrName)) {
         renderer.setProperty(native, attrName, attrVal);
       } else {
         renderer.setAttribute(native, attrName, attrVal);
-      }`;
-const SET_UP_ATTRS_WRITE_FINAL = `      if (isAnimationProp(attrName)) {
+      }`,
+        `      if (isAnimationProp(attrName)) {
         renderer.setProperty(native, attrName, attrVal);
       } else if (!skipIfUnchanged || native.getAttribute(attrName) !== attrVal) {
         renderer.setAttribute(native, attrName, attrVal);
-      }`;
-const SETUP_STATIC_STOCK = `function setupStaticAttributes(renderer, element, tNode) {
+      }`,
+      ],
+      [
+        `function setupStaticAttributes(renderer, element, tNode) {
   const {
     mergedAttrs,
     classes,
@@ -164,8 +119,8 @@ const SETUP_STATIC_STOCK = `function setupStaticAttributes(renderer, element, tN
   if (styles !== null) {
     writeDirectStyle(renderer, element, styles);
   }
-}`;
-const SETUP_STATIC_FINAL = `globalThis.__ngimgReproCore = 'final';
+}`,
+        `globalThis.__coreFix = true;
 function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false) {
   const {
     mergedAttrs,
@@ -181,19 +136,40 @@ function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false
   if (styles !== null && (!skipIfUnchanged || element.getAttribute('style') !== styles)) {
     writeDirectStyle(renderer, element, styles);
   }
-}`;
-
-const ATTR_BINDING_FINAL = `    const strValue = sanitizer == null ? renderStringify(value) : sanitizer(value, tagName || '', name);
-    if (!skipIfUnchanged || namespace || element.getAttribute(name) !== String(strValue)) {
+}`,
+      ],
+      // Attribute bindings.
+      [
+        `function setElementAttribute(renderer, element, namespace, tagName, name, value, sanitizer) {`,
+        `function setElementAttribute(renderer, element, namespace, tagName, name, value, sanitizer, skipIfUnchanged = false) {`,
+      ],
+      [
+        `    renderer.setAttribute(element, name, strValue, namespace);`,
+        `    if (!skipIfUnchanged || namespace || element.getAttribute(name) !== String(strValue)) {
       renderer.setAttribute(element, name, strValue, namespace);
-    }`;
-const PROP_BINDING_FINAL = `    value = unwrapImgVideoSrcValue(propName, element, value);
+    }`,
+      ],
+      [
+        `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer);`,
+        `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, isFirstPassOfHydratedView(lView));`,
+      ],
+      [
+        `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null);`,
+        `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null, isFirstPassOfHydratedView(lView));`,
+      ],
+      // Property bindings.
+      [
+        `    value = unwrapImgVideoSrcValue(propName, element, value);
+    renderer.setProperty(element, propName, value);`,
+        `    value = unwrapImgVideoSrcValue(propName, element, value);
     if (isFirstPassOfHydratedView(lView) && isDomPropertyUnchanged(element, propName, value)) {
       return;
     }
-    renderer.setProperty(element, propName, value);`;
-const PROP_HELPER_FINAL = `globalThis.__ngimgReproBindings = 'final';
-function isFirstPassOfHydratedView(lView) {
+    renderer.setProperty(element, propName, value);`,
+      ],
+      [
+        `function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
+        `function isFirstPassOfHydratedView(lView) {
   return lView[HYDRATION] !== null && (lView[FLAGS] & 8) !== 0;
 }
 const URL_PROPERTIES = /^(src|href|poster|data|action|formAction|cite)$/;
@@ -205,117 +181,52 @@ function isDomPropertyUnchanged(element, propName, value) {
     ? value != null && element.getAttribute(propName.toLowerCase()) === String(value)
     : element[propName] === value;
 }
-function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
-const SET_ATTR_SIGNATURE_STOCK = `function setElementAttribute(renderer, element, namespace, tagName, name, value, sanitizer) {`;
-const SET_ATTR_SIGNATURE_FINAL = `function setElementAttribute(renderer, element, namespace, tagName, name, value, sanitizer, skipIfUnchanged = false) {`;
-const ATTR_CALLER_STOCK = `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer);`;
-const ATTR_CALLER_FINAL = `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, isFirstPassOfHydratedView(lView));`;
-const ARIA_CALLER_STOCK = `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null);`;
-const ARIA_CALLER_FINAL = `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null, isFirstPassOfHydratedView(lView));`;
-
-/** Options for a part that only the `final` option changes. */
-const onlyFinal = (names, stock, final) => ({stock, options: {...Object.fromEntries(names.map((n) => [n, stock])), final}});
-const CORE_OPTIONS = ['compare', 'compare-inputs', 'skip'];
-const BINDINGS_OPTIONS = ['on'];
-
-// Each slot is stock or one of its options; a slot can patch several places (parts) in one file.
-const SLOTS = {
-  ngimg: {
-    file: join(pkgDir('@angular/common'), 'fesm2022/common.mjs'),
-    parts: [{
-      stock: `  setHostAttribute(name, value) {
-    this.renderer.setAttribute(this.imgElement, name, value);
-  }`,
-      options: {
-        on: `  setHostAttribute(name, value) {
-    // ngimg-hydration-repro: proposed fix
-    if (this.imgElement.getAttribute(name) !== value) {
-      this.renderer.setAttribute(this.imgElement, name, value);
-    }
-  }`,
-      },
-    }],
-  },
-  core: {
-    file: join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs'),
-    parts: [{
-      stock: CORE_STOCK,
-      options: {
-        'compare': corePatched('compare'),
-        'compare-inputs': corePatched('compare-inputs'),
-        'skip': corePatched('skip'),
-        'final': FINAL_STATIC_CALL,
-      },
-    },
-    onlyFinal(CORE_OPTIONS, SET_UP_ATTRS_SIGNATURE_STOCK, SET_UP_ATTRS_SIGNATURE_FINAL),
-    onlyFinal(CORE_OPTIONS, SET_UP_ATTRS_WRITE_STOCK, SET_UP_ATTRS_WRITE_FINAL),
-    onlyFinal(CORE_OPTIONS, SETUP_STATIC_STOCK, SETUP_STATIC_FINAL),
-    ],
-  },
-  bindings: {
-    file: join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs'),
-    parts: [
-      {stock: ATTR_BINDING_STOCK, options: {on: ATTR_BINDING_PATCHED, final: ATTR_BINDING_FINAL}},
-      {stock: PROP_BINDING_STOCK, options: {on: PROP_BINDING_PATCHED, final: PROP_BINDING_FINAL}},
-      {stock: PROP_HELPER_STOCK, options: {on: PROP_HELPER_PATCHED, final: PROP_HELPER_FINAL}},
-      onlyFinal(BINDINGS_OPTIONS, SET_ATTR_SIGNATURE_STOCK, SET_ATTR_SIGNATURE_FINAL),
-      onlyFinal(BINDINGS_OPTIONS, ATTR_CALLER_STOCK, ATTR_CALLER_FINAL),
-      onlyFinal(BINDINGS_OPTIONS, ARIA_CALLER_STOCK, ARIA_CALLER_FINAL),
-    ],
-  },
+function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
+      ],
+  ]),
 };
 
-/** Build variants: the option each slot uses (slots not listed stay stock). */
+function coreEdits(edits) {
+  return edits.map(([stock, patched]) => [CORE, stock, patched]);
+}
+
+/** The builds, and the fixes each one applies. */
 export const VARIANTS = {
-  'stock': {},
-  'fixed': {ngimg: 'on'},
-  'compare': {core: 'compare'},
-  'fixed+compare': {ngimg: 'on', core: 'compare'},
-  'fixed+compare-inputs': {ngimg: 'on', core: 'compare-inputs'},
-  'fixed+skip': {ngimg: 'on', core: 'skip'},
-  'fixed+compare+bindings': {ngimg: 'on', core: 'compare', bindings: 'on'},
-  'fixed+compare-inputs+bindings': {ngimg: 'on', core: 'compare-inputs', bindings: 'on'},
-  'core-final': {core: 'final', bindings: 'final'},
-  'fixed+core-final': {ngimg: 'on', core: 'final', bindings: 'final'},
+  'stock': [],
+  'directive-fix': ['directive'],
+  'core-fix': ['core'],
+  'both-fixes': ['directive', 'core'],
 };
 
 const read = (file) => readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
-const count = (src, text) => src.split(text).length - 1;
+const count = (text, part) => text.split(part).length - 1;
 
+/** Returns which fixes are applied in node_modules. */
 export function status() {
-  return Object.fromEntries(Object.entries(SLOTS).map(([slot, s]) => {
-    const src = read(s.file);
-    const options = Object.keys(s.parts[0].options);
-    const option = options.find((o) => s.parts.every((p) => count(src, p.options[o]) === 1));
-    if (option) return [slot, option];
-    if (s.parts.every((p) => count(src, p.stock) === 1)) return [slot, 'stock'];
-    throw new Error(`${slot}: patch target not found (exactly once) in ${s.file}; the Angular version may have changed.`);
+  return Object.fromEntries(Object.entries(FIXES).map(([name, edits]) => {
+    if (edits.every(([file, , patched]) => read(file).includes(patched))) return [name, 'applied'];
+    if (edits.every(([file, stock]) => count(read(file), stock) === 1)) return [name, 'not applied'];
+    throw new Error(`${name}: the code to patch was not found. Run npm ci.`);
   }));
 }
 
 export function setVariant(variant) {
   const wanted = VARIANTS[variant];
-  if (!wanted) throw new Error(`unknown variant ${variant}`);
+  if (!wanted) throw new Error(`Unknown variant: ${variant}`);
   const current = status();
-  for (const [slot, s] of Object.entries(SLOTS)) {
-    const want = wanted[slot] ?? 'stock';
-    if (current[slot] === want) continue;
-    let src = read(s.file);
-    for (const p of s.parts) {
-      if (current[slot] !== 'stock') src = src.replace(p.options[current[slot]], p.stock);
-      if (want !== 'stock') src = src.replace(p.stock, p.options[want]);
+  for (const [name, edits] of Object.entries(FIXES)) {
+    const applied = current[name] === 'applied';
+    if (applied === wanted.includes(name)) continue;
+    for (const [file, stock, patched] of edits) {
+      const source = read(file);
+      writeFileSync(file, applied ? source.replace(patched, stock) : source.replace(stock, patched));
     }
-    writeFileSync(s.file, src);
-  }
-  const after = status();
-  for (const slot of Object.keys(SLOTS)) {
-    if (after[slot] !== (wanted[slot] ?? 'stock')) throw new Error(`failed to set ${slot} for ${variant}`);
   }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [cmd = 'status', variant] = process.argv.slice(2);
-  if (cmd === 'apply') setVariant(variant ?? 'fixed');
-  else if (cmd === 'revert') setVariant('stock');
+  const [command = 'status', variant] = process.argv.slice(2);
+  if (command === 'apply') setVariant(variant);
+  else if (command === 'revert') setVariant('stock');
   console.log(status());
 }

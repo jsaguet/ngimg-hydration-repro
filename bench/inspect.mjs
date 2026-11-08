@@ -1,32 +1,21 @@
 // Loads each page once per build (untimed, attribute MutationObserver on) and prints which DOM
 // writes happened during hydration, and whether the hydrated DOM is identical to the stock build's.
 // Usage: node bench/inspect.mjs [path-to-chrome]
-import {spawn} from 'node:child_process';
-import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {openPage} from '../tools/cdp.mjs';
+import {startServers} from '../tools/servers.mjs';
+import {teeConsole} from '../tools/tee.mjs';
 import {VARIANTS} from './patch.mjs';
 
 const chromePath = process.argv[2];
-const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+teeConsole(fileURLToPath(new URL('../results/dom-writes.txt', import.meta.url)));
 const PAGES = [
-  {name: 'product grid (200 images)', path: '/?bootAfterLoad&inspect'},
-  {name: 'product grid, width/height/sizes bound', path: '/bound?bootAfterLoad&inspect'},
-  {name: 'data table (300 rows, 2 images)', path: '/table?bootAfterLoad&inspect'},
-  {name: 'media (incl. values that differ between server and client)', path: '/media?bootAfterLoad&inspect'},
+  {name: 'image grid: 200 NgOptimizedImage, static width/height/sizes', path: '/?bootAfterLoad&inspect'},
+  {name: 'data table: 300 rows of static markup, 2 images', path: '/table?bootAfterLoad&inspect'},
+  {name: 'media: videos, and values that differ between server and browser', path: '/media?bootAfterLoad&inspect'},
 ];
 
-const variants = Object.keys(VARIANTS).map((name, i) => ({name, port: 4420 + i}));
-const servers = variants.map(({name, port}) =>
-  spawn(process.execPath, [join(root, 'dist', name, 'server', 'server.mjs')],
-    {env: {...process.env, PORT: String(port)}, stdio: 'ignore'}));
-process.on('exit', () => servers.forEach((s) => s.kill()));
-for (const {name, port} of variants) {
-  for (let i = 0; ; i++) {
-    try { if ((await fetch(`http://localhost:${port}/img/ping`)).ok) break; } catch {}
-    if (i > 100) throw new Error(`dist/${name} server did not start (run bench/build-variants.mjs)`);
-    await new Promise((r) => setTimeout(r, 100));
-  }
-}
+const {variants, stop} = await startServers(Object.keys(VARIANTS), 4420);
 
 const page = await openPage('about:blank', chromePath);
 async function load(port, path) {
@@ -53,8 +42,6 @@ for (const {name: pageName, path} of PAGES) {
       'attribute writes': r.attrWrites,
       'of which identical': r.attrWrites - changed,
       'top attributes': writes.slice(0, 4).map(([a, m]) => `${a} ${m.count}`).join(', '),
-      'img load events': r.imgLoadEvents,
-      '(load) calls': r.loadHandlerCalls,
       'final DOM = stock': r.dom === stockDom ? 'yes' : 'NO',
     }];
   })));
@@ -74,4 +61,5 @@ for (const {name: pageName, path} of PAGES) {
   }
 }
 page.close();
+stop();
 setTimeout(() => process.exit(0), 300);
