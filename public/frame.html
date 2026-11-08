@@ -1,0 +1,10 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Frame</title>
+<body style="font: 12px sans-serif">
+  iframe document
+  <script>
+    const name = new URLSearchParams(location.search).get('case');
+    parent.__frames = {...parent.__frames, [name]: (parent.__frames?.[name] ?? 0) + 1};
+  </script>
+</body>

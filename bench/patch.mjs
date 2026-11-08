@@ -2,8 +2,8 @@
 // built with and without them. Each edit reproduces the matching change on the angular repo:
 //
 //   directive  packages/common/src/directives/ng_optimized_image/ng_optimized_image.ts
-//   core       packages/core/src/render3 (instructions/shared.ts, instructions/aria_property.ts,
-//              dom_node_manipulation.ts, util/attrs_utils.ts)
+//   core       packages/core/src/render3 (instructions/shared.ts, dom_node_manipulation.ts,
+//              util/attrs_utils.ts)
 //
 // Usage: node bench/patch.mjs status | apply <variant> | revert
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -16,17 +16,6 @@ const pkgDir = (name) => dirname(require.resolve(`${name}/package.json`));
 
 const COMMON = join(pkgDir('@angular/common'), 'fesm2022/common.mjs');
 const CORE = join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs');
-
-const PRIMITIVES = join(pkgDir('@angular/core'), 'fesm2022/primitives-event-dispatch.mjs');
-const MEDIA_EVENTS = `'loadstart', 'durationchange', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'play', 'playing'`;
-const MEDIA_EVENT_EDITS = [
-  [PRIMITIVES, `'ended', 'loadedmetadata', 'pagehide'`, `'ended', 'pagehide'`],
-  [
-    PRIMITIVES,
-    `const CAPTURE_EVENT_TYPES = [EventType.FOCUS, EventType.BLUR, EventType.ERROR, EventType.LOAD, EventType.TOGGLE];`,
-    `const CAPTURE_EVENT_TYPES = [EventType.FOCUS, EventType.BLUR, EventType.ERROR, EventType.LOAD, EventType.TOGGLE, ${MEDIA_EVENTS}];`,
-  ],
-];
 
 // Each edit is [file, published code, patched code].
 const FIXES = {
@@ -61,7 +50,7 @@ const FIXES = {
   }`,
     ],
   ],
-  core: [...coreEdits([
+  core: coreEdits([
       // Static attributes, class and style.
       [
         `    setupStaticAttributes(lView[RENDERER], native, tNode);
@@ -81,7 +70,7 @@ const FIXES = {
       }`,
         `      if (isAnimationProp(attrName)) {
         renderer.setProperty(native, attrName, attrVal);
-      } else if (!skipIfUnchanged || native.getAttribute(attrName) !== attrVal) {
+      } else if (!skipIfUnchanged || native.getAttribute(attrName) !== String(attrVal)) {
         renderer.setAttribute(native, attrName, attrVal);
       }`,
       ],
@@ -127,45 +116,34 @@ function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false
       ],
       [
         `    renderer.setAttribute(element, name, strValue, namespace);`,
-        `    if (!skipIfUnchanged || namespace || element.getAttribute(name) !== String(strValue)) {
+        `    if (!skipIfUnchanged || element.getAttribute(name) !== String(strValue)) {
       renderer.setAttribute(element, name, strValue, namespace);
     }`,
       ],
       [
         `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer);`,
-        `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, isFirstPassOfHydratedView(lView));`,
-      ],
-      [
-        `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null);`,
-        `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null, isFirstPassOfHydratedView(lView));`,
+        `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, isFirstWriteOfRenderedResource(tNode, lView, name));`,
       ],
       // Property bindings.
       [
         `    value = unwrapImgVideoSrcValue(propName, element, value);
     renderer.setProperty(element, propName, value);`,
         `    value = unwrapImgVideoSrcValue(propName, element, value);
-    if (isFirstPassOfHydratedView(lView) && isDomPropertyUnchanged(element, propName, value)) {
-      return;
-    }
-    renderer.setProperty(element, propName, value);`,
+    if (!isFirstWriteOfRenderedResource(tNode, lView, propName) || element.getAttribute(propName) !== String(value)) {
+      renderer.setProperty(element, propName, value);
+    }`,
       ],
       [
         `function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
-        `function isFirstPassOfHydratedView(lView) {
-  return lView[HYDRATION] !== null && (lView[FLAGS] & 8) !== 0;
-}
-const URL_PROPERTIES = /^(src|href|poster|data|action|formAction|cite)$/;
-function isDomPropertyUnchanged(element, propName, value) {
-  if (element.tagName.includes('-') || isAnimationProp(propName)) {
-    return false;
-  }
-  return URL_PROPERTIES.test(propName)
-    ? value != null && element.getAttribute(propName.toLowerCase()) === String(value)
-    : element.hasAttribute(propName.toLowerCase()) && element[propName] === value;
+        `function isFirstWriteOfRenderedResource(tNode, lView, name) {
+  const tagName = tNode.value;
+  return lView[HYDRATION] !== null && (lView[FLAGS] & 8) !== 0 &&
+    (name === 'src' ? tagName === 'iframe' || tagName === 'embed' || tagName === 'video' || tagName === 'audio'
+                    : name === 'data' && tagName === 'object');
 }
 function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
       ],
-  ]), ...MEDIA_EVENT_EDITS],
+  ]),
 };
 
 function coreEdits(edits) {

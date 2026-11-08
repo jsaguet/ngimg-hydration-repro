@@ -1,12 +1,12 @@
 # Angular hydration writes values that the server already rendered
 
-During hydration, Angular reuses the DOM that the server rendered. It still writes attributes and properties that already have the right value, and the browser reacts to each write. A playing video restarts, and an image selects its source again.
+During hydration, Angular reuses the DOM that the server rendered. It still writes attributes and properties that already have the right value, and the browser reacts to each write. A playing video restarts, an iframe loads its document again, and an image selects its source again.
 
 This repository reproduces the problems in an Angular 22.2.5 server-rendered app and measures two fixes:
 
 | Fix | Issue | Pull request |
 |---|---|---|
-| Core: don't write unchanged values on hydrated nodes | [#71872](https://github.com/angular/angular/issues/71872) | [#71874](https://github.com/angular/angular/pull/71874) |
+| Core: don't write unchanged static values or resource URL bindings on hydrated nodes | [#52477](https://github.com/angular/angular/issues/52477) | [#71874](https://github.com/angular/angular/pull/71874) |
 | `NgOptimizedImage`: don't write unchanged attributes | [#71873](https://github.com/angular/angular/issues/71873) | [#71875](https://github.com/angular/angular/pull/71875) |
 
 ## Hydration restarts playing videos
@@ -27,6 +27,15 @@ The result depends on the core fix only. [`results/media.txt`](results/media.txt
 | `directive-fix` | restarts | restarts | restarts | restarts |
 | `core-fix` | keeps playing | keeps playing | keeps playing | restarts |
 | `both-fixes` | keeps playing | keeps playing | keeps playing | restarts |
+
+## Hydration loads iframes again
+
+The `/media` page also has two iframes. Each document counts how many times it loads. [`results/events.txt`](results/events.txt) has the counts:
+
+| Build | `src="…"` | `[src]` |
+|---|---|---|
+| `stock` | 2 loads | 2 loads |
+| `core-fix` | 1 load | 1 load |
 
 ## `NgOptimizedImage` makes the browser select each image again
 
@@ -49,18 +58,18 @@ Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.w
 
 | Page and CPU | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|
-| Image grid, no throttling | 35.5 ms | 29.0 ms (−18%) | 33.0 ms (−7%) | 26.8 ms (−25%) |
-| Image grid, 4× CPU throttling | 241.7 ms | 196.6 ms (−19%) | 233.2 ms (−4%) | 186.5 ms (−23%) |
-| Bound image grid, no throttling | 22.2 ms | 9.5 ms (−57%) | 23.1 ms (+4%) | 9.9 ms (−55%) |
-| Bound image grid, 4× CPU throttling | 160.4 ms | 61.1 ms (−62%) | 162.9 ms (+2%) | 59.6 ms (−63%) |
-| Table, no throttling | 22.6 ms | 22.3 ms (−1%) | 9.9 ms (−56%) | 9.8 ms (−57%) |
-| Table, 4× CPU throttling | 159.3 ms | 160.0 ms (0%) | 59.5 ms (−63%) | 60.0 ms (−62%) |
+| Image grid, no throttling | 34.8 ms | 28.1 ms (−19%) | 32.6 ms (−6%) | 25.6 ms (−26%) |
+| Image grid, 4× CPU throttling | 247.9 ms | 198.6 ms (−20%) | 233.1 ms (−6%) | 190.1 ms (−23%) |
+| Bound image grid, no throttling | 23.4 ms | 9.6 ms (−59%) | 25.3 ms (+8%) | 9.6 ms (−59%) |
+| Bound image grid, 4× CPU throttling | 168.6 ms | 63.4 ms (−62%) | 164.9 ms (−2%) | 61.4 ms (−64%) |
+| Table, no throttling | 22.3 ms | 22.4 ms (0%) | 10.0 ms (−55%) | 10.0 ms (−55%) |
+| Table, 4× CPU throttling | 162.0 ms | 163.7 ms (+1%) | 61.6 ms (−62%) | 60.0 ms (−63%) |
 
-The two fixes help different pages. Differences of a few percent are within the variation between runs.
+The two fixes help different pages. Differences of a few percent are within the variation between runs. So is the +8% for `core-fix` on the bound grid, which becomes −2% with throttling.
 
 | Page | Measure | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|---|
-| Image grid | Attribute writes | 3,637 | 2,033 | 2,432 | 798 |
+| Image grid | Attribute writes | 3,637 | 2,033 | 2,432 | 824 |
 | Image grid | `load` events fired again | 30 | 30 | 30 | 26 |
 | Image grid | `(load)` handler calls for 30 loaded images | 60 | 60 | 60 | 56 |
 | Bound image grid | Attribute writes | 3,037 | 1,207 | 2,236 | 406 |
@@ -73,16 +82,16 @@ The complete output is in [`results/timings.txt`](results/timings.txt) and [`res
 
 ## What happens to event handlers
 
-A handler can depend on these repeated writes without anyone intending it. The core fix adds the media events below to event replay, so a handler still runs when its event fired before hydration: `loadstart`, `durationchange`, `loadedmetadata`, `loadeddata`, `canplay`, `canplaythrough`, `play`, and `playing`. [`results/events.txt`](results/events.txt) has handler calls with event replay on, which is the default, and off:
+A handler can depend on these repeated writes without anyone intending it. [`results/events.txt`](results/events.txt) has handler calls for events that fired before hydration, with event replay on, which is the default, and off:
 
-| Build and event replay | Plain `<img>` `(load)` | Video `(canplay)` |
-|---|---|---|
-| `stock`, on | 2 | 1 |
-| `core-fix`, on | 1 | 1 |
-| `stock`, off | 1 | 1 |
-| `core-fix`, off | 0 | 0 |
+| Build and event replay | Plain `<img>` `(load)` | Iframe `(load)` | Video `(canplay)` |
+|---|---|---|---|
+| `stock`, on | 2 | 2 | 1 |
+| `core-fix`, on | 1 | 1 | 0 |
+| `stock`, off | 1 | 1 | 1 |
+| `core-fix`, off | 0 | 0 | 0 |
 
-With event replay off, a handler runs today only because the write fires the event again.
+The iframe values are the same for `src` and `[src]`. Today, a video that was ready before hydration fires `canplay` again because it restarts. With the core fix it doesn't restart, and event replay doesn't cover `canplay`, so the handler doesn't run for that earlier event.
 
 ## Run it yourself
 

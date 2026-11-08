@@ -4,20 +4,20 @@ A video that keeps playing has a later position after hydration than before it.
 ┌───────────────────────────────────┬──────────────────────┬──────────────────────┬───────────┬─────────────────────────────────┐
 │ (index)                           │ position before (s)  │ position after (s)   │ restarted │ src after hydration             │
 ├───────────────────────────────────┼──────────────────────┼──────────────────────┼───────────┼─────────────────────────────────┤
-│ stock | static                    │ '1.50 / 1.49 / 1.50' │ '0.34 / 0.34 / 0.34' │ 'yes'     │ 'clip.webm'                     │
-│ stock | property binding          │ '1.50 / 1.49 / 1.50' │ '0.34 / 0.34 / 0.34' │ 'yes'     │ 'clip.webm'                     │
-│ stock | attribute binding         │ '1.50 / 1.49 / 1.50' │ '0.34 / 0.34 / 0.34' │ 'yes'     │ 'clip.webm'                     │
-│ stock | client differs            │ '1.50 / 1.49 / 1.50' │ '0.34 / 0.34 / 0.34' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
-│ directive-fix | static            │ '1.51 / 1.50 / 1.49' │ '0.34 / 0.32 / 0.32' │ 'yes'     │ 'clip.webm'                     │
-│ directive-fix | property binding  │ '1.51 / 1.50 / 1.49' │ '0.34 / 0.32 / 0.32' │ 'yes'     │ 'clip.webm'                     │
-│ directive-fix | attribute binding │ '1.51 / 1.50 / 1.49' │ '0.34 / 0.32 / 0.32' │ 'yes'     │ 'clip.webm'                     │
-│ directive-fix | client differs    │ '1.51 / 1.50 / 1.49' │ '0.34 / 0.32 / 0.32' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
-│ core-fix | static                 │ '1.50 / 1.50 / 1.50' │ '1.89 / 1.91 / 1.91' │ 'no'      │ 'clip.webm'                     │
-│ core-fix | property binding       │ '1.50 / 1.50 / 1.50' │ '1.89 / 1.91 / 1.91' │ 'no'      │ 'clip.webm'                     │
-│ core-fix | attribute binding      │ '1.50 / 1.50 / 1.50' │ '1.89 / 1.91 / 1.91' │ 'no'      │ 'clip.webm'                     │
-│ core-fix | client differs         │ '1.50 / 1.50 / 1.50' │ '0.35 / 0.37 / 0.38' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
-│ both-fixes | static               │ '1.49 / 1.50 / 1.50' │ '1.88 / 1.89 / 1.90' │ 'no'      │ 'clip.webm'                     │
-│ both-fixes | property binding     │ '1.49 / 1.50 / 1.50' │ '1.88 / 1.89 / 1.90' │ 'no'      │ 'clip.webm'                     │
-│ both-fixes | attribute binding    │ '1.49 / 1.50 / 1.50' │ '1.88 / 1.89 / 1.90' │ 'no'      │ 'clip.webm'                     │
-│ both-fixes | client differs       │ '1.49 / 1.50 / 1.50' │ '0.34 / 0.35 / 0.38' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
+│ stock | static                    │ '1.51 / 1.51 / 1.51' │ '0.34 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm'                     │
+│ stock | property binding          │ '1.51 / 1.50 / 1.51' │ '0.34 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm'                     │
+│ stock | attribute binding         │ '1.51 / 1.51 / 1.51' │ '0.34 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm'                     │
+│ stock | client differs            │ '1.51 / 1.50 / 1.51' │ '0.34 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
+│ directive-fix | static            │ '1.49 / 1.50 / 1.51' │ '0.33 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm'                     │
+│ directive-fix | property binding  │ '1.49 / 1.49 / 1.51' │ '0.33 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm'                     │
+│ directive-fix | attribute binding │ '1.49 / 1.49 / 1.51' │ '0.33 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm'                     │
+│ directive-fix | client differs    │ '1.49 / 1.49 / 1.51' │ '0.33 / 0.35 / 0.34' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
+│ core-fix | static                 │ '1.50 / 1.51 / 1.50' │ '1.91 / 1.90 / 1.91' │ 'no'      │ 'clip.webm'                     │
+│ core-fix | property binding       │ '1.50 / 1.50 / 1.50' │ '1.91 / 1.89 / 1.91' │ 'no'      │ 'clip.webm'                     │
+│ core-fix | attribute binding      │ '1.49 / 1.50 / 1.50' │ '1.89 / 1.89 / 1.91' │ 'no'      │ 'clip.webm'                     │
+│ core-fix | client differs         │ '1.50 / 1.50 / 1.50' │ '0.37 / 0.35 / 0.38' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
+│ both-fixes | static               │ '1.50 / 1.50 / 1.50' │ '1.89 / 1.89 / 1.89' │ 'no'      │ 'clip.webm'                     │
+│ both-fixes | property binding     │ '1.50 / 1.50 / 1.50' │ '1.89 / 1.89 / 1.89' │ 'no'      │ 'clip.webm'                     │
+│ both-fixes | attribute binding    │ '1.50 / 1.50 / 1.50' │ '1.89 / 1.89 / 1.89' │ 'no'      │ 'clip.webm'                     │
+│ both-fixes | client differs       │ '1.50 / 1.50 / 1.50' │ '0.34 / 0.38 / 0.37' │ 'yes'     │ 'clip.webm?rendered-on=browser' │
 └───────────────────────────────────┴──────────────────────┴──────────────────────┴───────────┴─────────────────────────────────┘

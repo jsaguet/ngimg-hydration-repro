@@ -32,10 +32,15 @@ for (const replay of [true, false]) {
     const grid = await load(`http://localhost:${port}/?bootAfterLoad${query}`);
     await load(`http://localhost:${port}/media?bootAfterLoad&bootDelay=1500${query}`);
     const handlers = await page.evaluate('window.__handlers ?? {}');
+    const frames = await page.evaluate('window.__frames ?? {}');
     rows[`${name}, event replay ${replay ? 'on' : 'off'}`] = {
       'NgOptimizedImage (load), 30 images': grid.loadHandlerCalls,
       'plain <img> (load), 1 image': handlers.load ?? 0,
       'video (canplay), 1 video': handlers.canplay ?? 0,
+      'iframe documents loaded, src': frames.static ?? 0,
+      'iframe documents loaded, [src]': frames.bound ?? 0,
+      'iframe (load), src': handlers['iframe-static'] ?? 0,
+      'iframe (load), [src]': handlers['iframe-bound'] ?? 0,
     };
   }
   stop();
