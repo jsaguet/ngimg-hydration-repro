@@ -6,8 +6,8 @@ This repository reproduces the problems in an Angular 22.2.5 server-rendered app
 
 | Fix | Issue | Pull request |
 |---|---|---|
-| Core: don't write unchanged values on hydrated nodes | ISSUE_CORE | PR_CORE |
-| `NgOptimizedImage`: don't write unchanged attributes, and stop changing `sizes` twice | ISSUE_IMG | PR_IMG |
+| Core: don't write unchanged values on hydrated nodes | [#71872](https://github.com/angular/angular/issues/71872) | [#71874](https://github.com/angular/angular/pull/71874) |
+| `NgOptimizedImage`: don't write unchanged attributes, and stop changing `sizes` twice | [#71873](https://github.com/angular/angular/issues/71873) | [#71875](https://github.com/angular/angular/pull/71875) |
 
 ## Hydration restarts playing videos
 
