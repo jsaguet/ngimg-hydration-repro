@@ -11,6 +11,8 @@
 //                   style at all (static `@animation` triggers are still registered).
 //   bindings on     Exploratory: on reused nodes, [attr.x] and [prop] bindings skip a write whose
 //                   value the DOM already has (needs a core option, which marks reused nodes).
+//   core + bindings  final  The same logic as the commit on the angular repo's
+//                   fix/hydration-skip-unchanged-dom-writes branch, for checking it in a browser.
 //
 // Usage: node bench/patch.mjs status | apply <variant> | revert
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -130,6 +132,92 @@ function ngimgReproSameDomProperty(element, propName, value) {
 }
 function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
 
+// --- final: mirrors the real change in packages/core/src/render3 ----------------------------------
+const FINAL_STATIC_CALL = CORE_STOCK.replace(
+  'setupStaticAttributes(lView[RENDERER], native, tNode);',
+  'setupStaticAttributes(lView[RENDERER], native, tNode, !wasLastNodeCreated());',
+);
+const SET_UP_ATTRS_SIGNATURE_STOCK = `function setUpAttributes(renderer, native, attrs) {`;
+const SET_UP_ATTRS_SIGNATURE_FINAL = `function setUpAttributes(renderer, native, attrs, skipIfUnchanged = false) {`;
+const SET_UP_ATTRS_WRITE_STOCK = `      if (isAnimationProp(attrName)) {
+        renderer.setProperty(native, attrName, attrVal);
+      } else {
+        renderer.setAttribute(native, attrName, attrVal);
+      }`;
+const SET_UP_ATTRS_WRITE_FINAL = `      if (isAnimationProp(attrName)) {
+        renderer.setProperty(native, attrName, attrVal);
+      } else if (!skipIfUnchanged || native.getAttribute(attrName) !== attrVal) {
+        renderer.setAttribute(native, attrName, attrVal);
+      }`;
+const SETUP_STATIC_STOCK = `function setupStaticAttributes(renderer, element, tNode) {
+  const {
+    mergedAttrs,
+    classes,
+    styles
+  } = tNode;
+  if (mergedAttrs !== null) {
+    setUpAttributes(renderer, element, mergedAttrs);
+  }
+  if (classes !== null) {
+    writeDirectClass(renderer, element, classes);
+  }
+  if (styles !== null) {
+    writeDirectStyle(renderer, element, styles);
+  }
+}`;
+const SETUP_STATIC_FINAL = `globalThis.__ngimgReproCore = 'final';
+function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false) {
+  const {
+    mergedAttrs,
+    classes,
+    styles
+  } = tNode;
+  if (mergedAttrs !== null) {
+    setUpAttributes(renderer, element, mergedAttrs, skipIfUnchanged);
+  }
+  if (classes !== null && (!skipIfUnchanged || element.getAttribute('class') !== (classes || null))) {
+    writeDirectClass(renderer, element, classes);
+  }
+  if (styles !== null && (!skipIfUnchanged || element.getAttribute('style') !== styles)) {
+    writeDirectStyle(renderer, element, styles);
+  }
+}`;
+
+const ATTR_BINDING_FINAL = `    const strValue = sanitizer == null ? renderStringify(value) : sanitizer(value, tagName || '', name);
+    if (!skipIfUnchanged || namespace || element.getAttribute(name) !== String(strValue)) {
+      renderer.setAttribute(element, name, strValue, namespace);
+    }`;
+const PROP_BINDING_FINAL = `    value = unwrapImgVideoSrcValue(propName, element, value);
+    if (isFirstPassOfHydratedView(lView) && isDomPropertyUnchanged(element, propName, value)) {
+      return;
+    }
+    renderer.setProperty(element, propName, value);`;
+const PROP_HELPER_FINAL = `globalThis.__ngimgReproBindings = 'final';
+function isFirstPassOfHydratedView(lView) {
+  return lView[HYDRATION] !== null && (lView[FLAGS] & 8) !== 0;
+}
+const URL_PROPERTIES = /^(src|href|poster|data|action|formAction|cite)$/;
+function isDomPropertyUnchanged(element, propName, value) {
+  if (element.tagName.includes('-')) {
+    return false;
+  }
+  return URL_PROPERTIES.test(propName)
+    ? value != null && element.getAttribute(propName.toLowerCase()) === String(value)
+    : element[propName] === value;
+}
+function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`;
+const SET_ATTR_SIGNATURE_STOCK = `function setElementAttribute(renderer, element, namespace, tagName, name, value, sanitizer) {`;
+const SET_ATTR_SIGNATURE_FINAL = `function setElementAttribute(renderer, element, namespace, tagName, name, value, sanitizer, skipIfUnchanged = false) {`;
+const ATTR_CALLER_STOCK = `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer);`;
+const ATTR_CALLER_FINAL = `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, isFirstPassOfHydratedView(lView));`;
+const ARIA_CALLER_STOCK = `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null);`;
+const ARIA_CALLER_FINAL = `      setElementAttribute(lView[RENDERER], element, null, tNode.value, name, value, null, isFirstPassOfHydratedView(lView));`;
+
+/** Options for a part that only the `final` option changes. */
+const onlyFinal = (names, stock, final) => ({stock, options: {...Object.fromEntries(names.map((n) => [n, stock])), final}});
+const CORE_OPTIONS = ['compare', 'compare-inputs', 'skip'];
+const BINDINGS_OPTIONS = ['on'];
+
 // Each slot is stock or one of its options; a slot can patch several places (parts) in one file.
 const SLOTS = {
   ngimg: {
@@ -156,15 +244,23 @@ const SLOTS = {
         'compare': corePatched('compare'),
         'compare-inputs': corePatched('compare-inputs'),
         'skip': corePatched('skip'),
+        'final': FINAL_STATIC_CALL,
       },
-    }],
+    },
+    onlyFinal(CORE_OPTIONS, SET_UP_ATTRS_SIGNATURE_STOCK, SET_UP_ATTRS_SIGNATURE_FINAL),
+    onlyFinal(CORE_OPTIONS, SET_UP_ATTRS_WRITE_STOCK, SET_UP_ATTRS_WRITE_FINAL),
+    onlyFinal(CORE_OPTIONS, SETUP_STATIC_STOCK, SETUP_STATIC_FINAL),
+    ],
   },
   bindings: {
     file: join(pkgDir('@angular/core'), 'fesm2022/_debug_node-chunk.mjs'),
     parts: [
-      {stock: ATTR_BINDING_STOCK, options: {on: ATTR_BINDING_PATCHED}},
-      {stock: PROP_BINDING_STOCK, options: {on: PROP_BINDING_PATCHED}},
-      {stock: PROP_HELPER_STOCK, options: {on: PROP_HELPER_PATCHED}},
+      {stock: ATTR_BINDING_STOCK, options: {on: ATTR_BINDING_PATCHED, final: ATTR_BINDING_FINAL}},
+      {stock: PROP_BINDING_STOCK, options: {on: PROP_BINDING_PATCHED, final: PROP_BINDING_FINAL}},
+      {stock: PROP_HELPER_STOCK, options: {on: PROP_HELPER_PATCHED, final: PROP_HELPER_FINAL}},
+      onlyFinal(BINDINGS_OPTIONS, SET_ATTR_SIGNATURE_STOCK, SET_ATTR_SIGNATURE_FINAL),
+      onlyFinal(BINDINGS_OPTIONS, ATTR_CALLER_STOCK, ATTR_CALLER_FINAL),
+      onlyFinal(BINDINGS_OPTIONS, ARIA_CALLER_STOCK, ARIA_CALLER_FINAL),
     ],
   },
 };
@@ -179,6 +275,8 @@ export const VARIANTS = {
   'fixed+skip': {ngimg: 'on', core: 'skip'},
   'fixed+compare+bindings': {ngimg: 'on', core: 'compare', bindings: 'on'},
   'fixed+compare-inputs+bindings': {ngimg: 'on', core: 'compare-inputs', bindings: 'on'},
+  'core-final': {core: 'final', bindings: 'final'},
+  'fixed+core-final': {ngimg: 'on', core: 'final', bindings: 'final'},
 };
 
 const read = (file) => readFileSync(file, 'utf8').replace(/\r\n/g, '\n');

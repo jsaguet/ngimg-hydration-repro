@@ -131,6 +131,18 @@ after hydration (fixed by `…+bindings`). The control video must restart in eve
 source really changes, and it does. The same write makes an `<iframe>` navigate again (checked
 outside Angular in Chrome 156: a new document is loaded).
 
+`core-final` and `fixed+core-final` apply the same logic as the core commit: static values and
+first binding writes are compared on nodes reused during hydration. All three videos keep playing
+with them, the control video still gets the client values, and the final DOM equals `stock` on
+every page. Hydration time ([`bench/run-output-final.txt`](bench/run-output-final.txt)):
+
+| Hydration (bootstrap → stable) | stock | fixed | core-final | fixed+core-final |
+|---|---|---|---|---|
+| Grid, 1× | 39.4 ms | 32.5 (−18%) | 37.4 (−5%) | 30.5 (−23%) |
+| Grid, 4× | 262 ms | 217 (−17%) | 254 (−3%) | 207 (−21%) |
+| Table, 1× | 26.3 ms | 26.0 (−1%) | 12.5 (−52%) | 12.5 (−52%) |
+| Table, 4× | 182 ms | 180 (−1%) | 71.2 (−61%) | 72.5 (−60%) |
+
 The bindings change has no measurable cost ([`bench/run-output-bindings.txt`](bench/run-output-bindings.txt)):
 grid hydration 31.0 → 33.2 ms and 205 → 202 ms (1× / 4× CPU), table 12.8 → 13.7 ms and 69.6 → 70.4 ms,
 within run-to-run noise. These pages have few attribute or property bindings, so it doesn't speed

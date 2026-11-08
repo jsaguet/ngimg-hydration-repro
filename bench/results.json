@@ -30,6 +30,15 @@
       "ngimg": "on",
       "core": "compare-inputs",
       "bindings": "on"
+    },
+    "core-final": {
+      "core": "final",
+      "bindings": "final"
+    },
+    "fixed+core-final": {
+      "ngimg": "on",
+      "core": "final",
+      "bindings": "final"
     }
   },
   "cells": [
@@ -38,139 +47,120 @@
       "scenario": "product grid (200 images), hydrate after images loaded",
       "summary": {
         "hydration: bootstrap → stable (ms)": {
-          "stock": 39.7,
-          "fixed+compare": "31 (-22%)",
-          "fixed+compare+bindings": "33.2 (-16%)",
-          "fixed+compare-inputs": "12.8 (-68%)",
-          "fixed+compare-inputs+bindings": "12.9 (-68%)"
+          "stock": 39.4,
+          "fixed": "32.5 (-18%)",
+          "core-final": "37.4 (-5%)",
+          "fixed+core-final": "30.5 (-23%)"
         },
         "main thread after stable (ms)": {
-          "stock": 10.7,
-          "fixed+compare": "10.6 (-2%)",
-          "fixed+compare+bindings": "10.1 (-6%)",
-          "fixed+compare-inputs": "4.7 (-56%)",
-          "fixed+compare-inputs+bindings": "4 (-63%)"
+          "stock": 11.3,
+          "fixed": "10.9 (-3%)",
+          "core-final": "11.2 (-1%)",
+          "fixed+core-final": "10.8 (-5%)"
         },
         "main thread total (ms)": {
-          "stock": 50.4,
-          "fixed+compare": "41.4 (-18%)",
-          "fixed+compare+bindings": "44.8 (-11%)",
-          "fixed+compare-inputs": "17.6 (-65%)",
-          "fixed+compare-inputs+bindings": "17 (-66%)"
+          "stock": 53.4,
+          "fixed": "43.1 (-19%)",
+          "core-final": "48.6 (-9%)",
+          "fixed+core-final": "41.1 (-23%)"
         },
         "attribute writes, all elements (untimed load)": {
           "stock": 3637,
-          "fixed+compare": "824 (-77%)",
-          "fixed+compare+bindings": "824 (-77%)",
-          "fixed+compare-inputs": "406 (-89%)",
-          "fixed+compare-inputs+bindings": "406 (-89%)"
+          "fixed": "2033 (-44%)",
+          "core-final": "2432 (-33%)",
+          "fixed+core-final": "824 (-77%)"
         },
         "img load events": {
           "stock": 30,
-          "fixed+compare": "26 (-13%)",
-          "fixed+compare+bindings": "26 (-13%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "30 (0%)",
+          "core-final": "30 (0%)",
+          "fixed+core-final": "26 (-13%)"
         },
         "(load) handler calls": {
           "stock": 60,
-          "fixed+compare": "56 (-7%)",
-          "fixed+compare+bindings": "56 (-7%)",
-          "fixed+compare-inputs": "30 (-50%)",
-          "fixed+compare-inputs+bindings": "30 (-50%)"
+          "fixed": "60 (0%)",
+          "core-final": "60 (0%)",
+          "fixed+core-final": "56 (-7%)"
         },
         "renders after stable": {
           "stock": 2,
-          "fixed+compare": "2 (0%)",
-          "fixed+compare+bindings": "2 (0%)",
-          "fixed+compare-inputs": "1 (-50%)",
-          "fixed+compare-inputs+bindings": "1 (-50%)"
+          "fixed": "2 (0%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "2 (0%)"
         },
         "elements restyled": {
           "stock": 230,
-          "fixed+compare": "222 (-3%)",
-          "fixed+compare+bindings": "222 (-3%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "230 (0%)",
+          "core-final": "230 (0%)",
+          "fixed+core-final": "222 (-3%)"
         },
         "layouts (reflows)": {
           "stock": 2,
-          "fixed+compare": "2 (0%)",
-          "fixed+compare+bindings": "2 (0%)",
-          "fixed+compare-inputs": "1 (-50%)",
-          "fixed+compare-inputs+bindings": "1 (-50%)"
+          "fixed": "2 (0%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "2 (0%)"
         },
         "paints": {
           "stock": 4,
-          "fixed+compare": "4 (0%)",
-          "fixed+compare+bindings": "4 (0%)",
-          "fixed+compare-inputs": "2 (-50%)",
-          "fixed+compare-inputs+bindings": "2 (-50%)"
+          "fixed": "4 (0%)",
+          "core-final": "4 (0%)",
+          "fixed+core-final": "4 (0%)"
         }
       },
       "byGroup": {
         "Script + DOM API": {
-          "stock": 38.61,
-          "fixed+compare": "31.06 (-20%)",
-          "fixed+compare+bindings": "31.39 (-19%)",
-          "fixed+compare-inputs": "13.64 (-65%)",
-          "fixed+compare-inputs+bindings": "13.48 (-65%)"
+          "stock": 38.75,
+          "fixed": "32.06 (-17%)",
+          "core-final": "36.37 (-6%)",
+          "fixed+core-final": "30.48 (-21%)"
         },
         "Image re-fetch (memory cache)": {
           "stock": 1.61,
-          "fixed+compare": "1.45 (-10%)",
-          "fixed+compare+bindings": "1.43 (-11%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "1.52 (-5%)",
+          "core-final": "1.55 (-3%)",
+          "fixed+core-final": "1.49 (-7%)"
         },
         "Style recalc": {
-          "stock": 0.58,
-          "fixed+compare": "0.52 (-10%)",
-          "fixed+compare+bindings": "0.53 (-9%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 0.55,
+          "fixed": "0.61 (+11%)",
+          "core-final": "0.56 (+2%)",
+          "fixed+core-final": "0.56 (+1%)"
         },
         "Layout (reflow)": {
           "stock": 0.03,
-          "fixed+compare": "0.03 (-3%)",
-          "fixed+compare+bindings": "0.03 (+3%)",
-          "fixed+compare-inputs": "0.02 (-29%)",
-          "fixed+compare-inputs+bindings": "0.02 (-45%)"
+          "fixed": "0.03 (+7%)",
+          "core-final": "0.03 (+14%)",
+          "fixed+core-final": "0.04 (+25%)"
         },
         "Intersection observers (lazy load)": {
-          "stock": 0.28,
-          "fixed+compare": "0.27 (-4%)",
-          "fixed+compare+bindings": "0.27 (-3%)",
-          "fixed+compare-inputs": "0.18 (-38%)",
-          "fixed+compare-inputs+bindings": "0.17 (-40%)"
+          "stock": 0.29,
+          "fixed": "0.29 (+2%)",
+          "core-final": "0.29 (-1%)",
+          "fixed+core-final": "0.29 (0%)"
         },
         "Paint / composite": {
-          "stock": 1.48,
-          "fixed+compare": "1.43 (-4%)",
-          "fixed+compare+bindings": "1.46 (-1%)",
-          "fixed+compare-inputs": "0.74 (-50%)",
-          "fixed+compare-inputs+bindings": "0.66 (-55%)"
+          "stock": 1.49,
+          "fixed": "1.48 (0%)",
+          "core-final": "1.61 (+8%)",
+          "fixed+core-final": "1.45 (-2%)"
         },
         "Image decode": {
           "stock": 0.01,
-          "fixed+compare": "0.01 (0%)",
-          "fixed+compare+bindings": "0.01 (-8%)",
-          "fixed+compare-inputs": "0.01 (-46%)",
-          "fixed+compare-inputs+bindings": "0.01 (-46%)"
+          "fixed": "0.01 (-8%)",
+          "core-final": "0.01 (+25%)",
+          "fixed+core-final": "0.01 (0%)"
         },
         "Event dispatch": {
           "stock": 0.41,
-          "fixed+compare": "0.33 (-21%)",
-          "fixed+compare+bindings": "0.36 (-13%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0.49 (+20%)",
+          "core-final": "0.41 (0%)",
+          "fixed+core-final": "0.41 (0%)"
         },
         "Other": {
-          "stock": 7.2,
-          "fixed+compare": "6.45 (-10%)",
-          "fixed+compare+bindings": "6.86 (-5%)",
-          "fixed+compare-inputs": "2.65 (-63%)",
-          "fixed+compare-inputs+bindings": "2.43 (-66%)"
+          "stock": 8.8,
+          "fixed": "6.54 (-26%)",
+          "core-final": "7.53 (-14%)",
+          "fixed+core-final": "6.68 (-24%)"
         }
       }
     },
@@ -179,139 +169,120 @@
       "scenario": "data table (300 rows, 2 images)",
       "summary": {
         "hydration: bootstrap → stable (ms)": {
-          "stock": 25.9,
-          "fixed+compare": "12.8 (-51%)",
-          "fixed+compare+bindings": "13.7 (-47%)",
-          "fixed+compare-inputs": "13 (-50%)",
-          "fixed+compare-inputs+bindings": "12.4 (-52%)"
+          "stock": 26.3,
+          "fixed": "26 (-1%)",
+          "core-final": "12.5 (-52%)",
+          "fixed+core-final": "12.5 (-52%)"
         },
         "main thread after stable (ms)": {
-          "stock": 12.4,
-          "fixed+compare": "2.9 (-77%)",
-          "fixed+compare+bindings": "2.6 (-79%)",
-          "fixed+compare-inputs": "2.6 (-79%)",
-          "fixed+compare-inputs+bindings": "2.5 (-80%)"
+          "stock": 11.7,
+          "fixed": "13.4 (+14%)",
+          "core-final": "4.8 (-59%)",
+          "fixed+core-final": "2.3 (-80%)"
         },
         "main thread total (ms)": {
-          "stock": 38.7,
-          "fixed+compare": "15.5 (-60%)",
-          "fixed+compare+bindings": "16.2 (-58%)",
-          "fixed+compare-inputs": "16.1 (-58%)",
-          "fixed+compare-inputs+bindings": "15 (-61%)"
+          "stock": 38.1,
+          "fixed": "39.1 (+2%)",
+          "core-final": "17.5 (-54%)",
+          "fixed+core-final": "14.7 (-61%)"
         },
         "attribute writes, all elements (untimed load)": {
           "stock": 12961,
-          "fixed+compare": "349 (-97%)",
-          "fixed+compare+bindings": "349 (-97%)",
-          "fixed+compare-inputs": "349 (-97%)",
-          "fixed+compare-inputs+bindings": "349 (-97%)"
+          "fixed": "12945 (0%)",
+          "core-final": "365 (-97%)",
+          "fixed+core-final": "349 (-97%)"
         },
         "img load events": {
           "stock": 2,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0 (-100%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "(load) handler calls": {
           "stock": 0,
-          "fixed+compare": 0,
-          "fixed+compare+bindings": 0,
-          "fixed+compare-inputs": 0,
-          "fixed+compare-inputs+bindings": 0
+          "fixed": 0,
+          "core-final": 0,
+          "fixed+core-final": 0
         },
         "renders after stable": {
           "stock": 1,
-          "fixed+compare": "1 (0%)",
-          "fixed+compare+bindings": "1 (0%)",
-          "fixed+compare-inputs": "1 (0%)",
-          "fixed+compare-inputs+bindings": "1 (0%)"
+          "fixed": "1 (0%)",
+          "core-final": "1 (0%)",
+          "fixed+core-final": "1 (0%)"
         },
         "elements restyled": {
           "stock": 1247,
-          "fixed+compare": "43 (-97%)",
-          "fixed+compare+bindings": "43 (-97%)",
-          "fixed+compare-inputs": "43 (-97%)",
-          "fixed+compare-inputs+bindings": "43 (-97%)"
+          "fixed": "1245 (0%)",
+          "core-final": "45 (-96%)",
+          "fixed+core-final": "43 (-97%)"
         },
         "layouts (reflows)": {
           "stock": 1,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "1 (0%)",
+          "core-final": "0 (-100%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "paints": {
           "stock": 2,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "2 (0%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "0 (-100%)"
         }
       },
       "byGroup": {
         "Script + DOM API": {
-          "stock": 26.05,
-          "fixed+compare": "12.67 (-51%)",
-          "fixed+compare+bindings": "13.48 (-48%)",
-          "fixed+compare-inputs": "12.93 (-50%)",
-          "fixed+compare-inputs+bindings": "12.19 (-53%)"
+          "stock": 26.21,
+          "fixed": "25.81 (-2%)",
+          "core-final": "12.32 (-53%)",
+          "fixed+core-final": "12.44 (-53%)"
         },
         "Image re-fetch (memory cache)": {
-          "stock": 0.05,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 0.04,
+          "fixed": "0 (-100%)",
+          "core-final": "0.05 (+9%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Style recalc": {
-          "stock": 2.72,
-          "fixed+compare": "0.1 (-96%)",
-          "fixed+compare+bindings": "0.11 (-96%)",
-          "fixed+compare-inputs": "0.1 (-96%)",
-          "fixed+compare-inputs+bindings": "0.11 (-96%)"
+          "stock": 2.22,
+          "fixed": "2.42 (+9%)",
+          "core-final": "0.13 (-94%)",
+          "fixed+core-final": "0.1 (-95%)"
         },
         "Layout (reflow)": {
           "stock": 0.05,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0.05 (-2%)",
+          "core-final": "0 (-100%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Intersection observers (lazy load)": {
           "stock": 0.03,
-          "fixed+compare": "0.03 (+4%)",
-          "fixed+compare+bindings": "0.03 (+24%)",
-          "fixed+compare-inputs": "0.02 (-8%)",
-          "fixed+compare-inputs+bindings": "0.03 (+8%)"
+          "fixed": "0.02 (-12%)",
+          "core-final": "0.03 (+8%)",
+          "fixed+core-final": "0.02 (-16%)"
         },
         "Paint / composite": {
-          "stock": 2.8,
-          "fixed+compare": "0.32 (-89%)",
-          "fixed+compare+bindings": "0.36 (-87%)",
-          "fixed+compare-inputs": "0.33 (-88%)",
-          "fixed+compare-inputs+bindings": "0.36 (-87%)"
+          "stock": 2.79,
+          "fixed": "2.78 (-1%)",
+          "core-final": "2.04 (-27%)",
+          "fixed+core-final": "0.32 (-88%)"
         },
         "Image decode": {
           "stock": 0,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0 (-50%)",
+          "core-final": "0 (-100%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Event dispatch": {
           "stock": 0.02,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0 (-100%)",
+          "core-final": "0.02 (0%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Other": {
-          "stock": 7.03,
-          "fixed+compare": "2.49 (-65%)",
-          "fixed+compare+bindings": "2.25 (-68%)",
-          "fixed+compare-inputs": "2.56 (-64%)",
-          "fixed+compare-inputs+bindings": "2.1 (-70%)"
+          "stock": 6.69,
+          "fixed": "8.02 (+20%)",
+          "core-final": "2.71 (-60%)",
+          "fixed+core-final": "1.99 (-70%)"
         }
       }
     },
@@ -320,139 +291,120 @@
       "scenario": "product grid (200 images), hydrate after images loaded",
       "summary": {
         "hydration: bootstrap → stable (ms)": {
-          "stock": 261.5,
-          "fixed+compare": "205 (-22%)",
-          "fixed+compare+bindings": "202.2 (-23%)",
-          "fixed+compare-inputs": "69.3 (-73%)",
-          "fixed+compare-inputs+bindings": "70.5 (-73%)"
+          "stock": 261.8,
+          "fixed": "216.8 (-17%)",
+          "core-final": "254.2 (-3%)",
+          "fixed+core-final": "207.4 (-21%)"
         },
         "main thread after stable (ms)": {
-          "stock": 60.2,
-          "fixed+compare": "58.5 (-3%)",
-          "fixed+compare+bindings": "57.9 (-4%)",
-          "fixed+compare-inputs": "17.7 (-71%)",
-          "fixed+compare-inputs+bindings": "18.2 (-70%)"
+          "stock": 57.1,
+          "fixed": "61.5 (+8%)",
+          "core-final": "61.7 (+8%)",
+          "fixed+core-final": "63.8 (+12%)"
         },
         "main thread total (ms)": {
-          "stock": 324.2,
-          "fixed+compare": "260.9 (-20%)",
-          "fixed+compare+bindings": "257.5 (-21%)",
-          "fixed+compare-inputs": "88.5 (-73%)",
-          "fixed+compare-inputs+bindings": "91.2 (-72%)"
+          "stock": 322.6,
+          "fixed": "278.3 (-14%)",
+          "core-final": "312.5 (-3%)",
+          "fixed+core-final": "263.7 (-18%)"
         },
         "attribute writes, all elements (untimed load)": {
           "stock": 3637,
-          "fixed+compare": "824 (-77%)",
-          "fixed+compare+bindings": "824 (-77%)",
-          "fixed+compare-inputs": "406 (-89%)",
-          "fixed+compare-inputs+bindings": "406 (-89%)"
+          "fixed": "2033 (-44%)",
+          "core-final": "2432 (-33%)",
+          "fixed+core-final": "824 (-77%)"
         },
         "img load events": {
           "stock": 30,
-          "fixed+compare": "26 (-13%)",
-          "fixed+compare+bindings": "26 (-13%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "30 (0%)",
+          "core-final": "30 (0%)",
+          "fixed+core-final": "26 (-13%)"
         },
         "(load) handler calls": {
           "stock": 60,
-          "fixed+compare": "56 (-7%)",
-          "fixed+compare+bindings": "56 (-7%)",
-          "fixed+compare-inputs": "30 (-50%)",
-          "fixed+compare-inputs+bindings": "30 (-50%)"
+          "fixed": "60 (0%)",
+          "core-final": "60 (0%)",
+          "fixed+core-final": "56 (-7%)"
         },
         "renders after stable": {
           "stock": 1,
-          "fixed+compare": "1 (0%)",
-          "fixed+compare+bindings": "1 (0%)",
-          "fixed+compare-inputs": "1 (0%)",
-          "fixed+compare-inputs+bindings": "1 (0%)"
+          "fixed": "1 (0%)",
+          "core-final": "1 (0%)",
+          "fixed+core-final": "1 (0%)"
         },
         "elements restyled": {
           "stock": 230,
-          "fixed+compare": "222 (-3%)",
-          "fixed+compare+bindings": "222 (-3%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "230 (0%)",
+          "core-final": "230 (0%)",
+          "fixed+core-final": "222 (-3%)"
         },
         "layouts (reflows)": {
           "stock": 2,
-          "fixed+compare": "2 (0%)",
-          "fixed+compare+bindings": "2 (0%)",
-          "fixed+compare-inputs": "1 (-50%)",
-          "fixed+compare-inputs+bindings": "1 (-50%)"
+          "fixed": "2 (0%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "2 (0%)"
         },
         "paints": {
           "stock": 4,
-          "fixed+compare": "4 (0%)",
-          "fixed+compare+bindings": "4 (0%)",
-          "fixed+compare-inputs": "2 (-50%)",
-          "fixed+compare-inputs+bindings": "2 (-50%)"
+          "fixed": "4 (0%)",
+          "core-final": "4 (0%)",
+          "fixed+core-final": "4 (0%)"
         }
       },
       "byGroup": {
         "Script + DOM API": {
-          "stock": 244.61,
-          "fixed+compare": "195.88 (-20%)",
-          "fixed+compare+bindings": "189.44 (-23%)",
-          "fixed+compare-inputs": "71.35 (-71%)",
-          "fixed+compare-inputs+bindings": "70.14 (-71%)"
+          "stock": 244.46,
+          "fixed": "207.6 (-15%)",
+          "core-final": "234.93 (-4%)",
+          "fixed+core-final": "197.74 (-19%)"
         },
         "Image re-fetch (memory cache)": {
-          "stock": 13.29,
-          "fixed+compare": "11.64 (-12%)",
-          "fixed+compare+bindings": "11.77 (-11%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 13.53,
+          "fixed": "11.45 (-15%)",
+          "core-final": "11.89 (-12%)",
+          "fixed+core-final": "10.59 (-22%)"
         },
         "Style recalc": {
-          "stock": 3.44,
-          "fixed+compare": "3.31 (-4%)",
-          "fixed+compare+bindings": "3.08 (-11%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 3.49,
+          "fixed": "3.45 (-1%)",
+          "core-final": "3.65 (+5%)",
+          "fixed+core-final": "3.64 (+5%)"
         },
         "Layout (reflow)": {
-          "stock": 0.38,
-          "fixed+compare": "0.37 (-4%)",
-          "fixed+compare+bindings": "0.38 (-1%)",
-          "fixed+compare-inputs": "0.19 (-50%)",
-          "fixed+compare-inputs+bindings": "0.21 (-47%)"
+          "stock": 0.23,
+          "fixed": "0.38 (+67%)",
+          "core-final": "0.38 (+69%)",
+          "fixed+core-final": "0.39 (+73%)"
         },
         "Intersection observers (lazy load)": {
-          "stock": 1.52,
-          "fixed+compare": "1.42 (-7%)",
-          "fixed+compare+bindings": "1.41 (-7%)",
-          "fixed+compare-inputs": "0.97 (-36%)",
-          "fixed+compare-inputs+bindings": "0.84 (-45%)"
+          "stock": 1.27,
+          "fixed": "1.41 (+10%)",
+          "core-final": "1.42 (+12%)",
+          "fixed+core-final": "1.28 (+1%)"
         },
         "Paint / composite": {
-          "stock": 8.38,
-          "fixed+compare": "8.29 (-1%)",
-          "fixed+compare+bindings": "8.63 (+3%)",
-          "fixed+compare-inputs": "3.04 (-64%)",
-          "fixed+compare-inputs+bindings": "3.21 (-62%)"
+          "stock": 9.32,
+          "fixed": "9.35 (0%)",
+          "core-final": "8.58 (-8%)",
+          "fixed+core-final": "8.88 (-5%)"
         },
         "Image decode": {
           "stock": 0.02,
-          "fixed+compare": "0.17 (+724%)",
-          "fixed+compare+bindings": "0.02 (-10%)",
-          "fixed+compare-inputs": "0.01 (-52%)",
-          "fixed+compare-inputs+bindings": "0.01 (-43%)"
+          "fixed": "0.18 (+733%)",
+          "core-final": "0.02 (0%)",
+          "fixed+core-final": "0.18 (+738%)"
         },
         "Event dispatch": {
-          "stock": 1.93,
-          "fixed+compare": "1.55 (-20%)",
-          "fixed+compare+bindings": "1.82 (-6%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 1.76,
+          "fixed": "2.07 (+18%)",
+          "core-final": "2.07 (+18%)",
+          "fixed+core-final": "1.9 (+8%)"
         },
         "Other": {
-          "stock": 49.31,
-          "fixed+compare": "38.44 (-22%)",
-          "fixed+compare+bindings": "41.46 (-16%)",
-          "fixed+compare-inputs": "11.35 (-77%)",
-          "fixed+compare-inputs+bindings": "11.05 (-78%)"
+          "stock": 47.8,
+          "fixed": "41.48 (-13%)",
+          "core-final": "51.07 (+7%)",
+          "fixed+core-final": "44.35 (-7%)"
         }
       }
     },
@@ -461,139 +413,120 @@
       "scenario": "data table (300 rows, 2 images)",
       "summary": {
         "hydration: bootstrap → stable (ms)": {
-          "stock": 175.4,
-          "fixed+compare": "69.6 (-60%)",
-          "fixed+compare+bindings": "70.4 (-60%)",
-          "fixed+compare-inputs": "70.2 (-60%)",
-          "fixed+compare-inputs+bindings": "69.3 (-60%)"
+          "stock": 182.2,
+          "fixed": "180.1 (-1%)",
+          "core-final": "71.2 (-61%)",
+          "fixed+core-final": "72.5 (-60%)"
         },
         "main thread after stable (ms)": {
-          "stock": 104.3,
-          "fixed+compare": "36.9 (-65%)",
-          "fixed+compare+bindings": "43.7 (-58%)",
-          "fixed+compare-inputs": "42.5 (-59%)",
-          "fixed+compare-inputs+bindings": "43.5 (-58%)"
+          "stock": 106.1,
+          "fixed": "114.8 (+8%)",
+          "core-final": "49.5 (-53%)",
+          "fixed+core-final": "44.1 (-58%)"
         },
         "main thread total (ms)": {
-          "stock": 281.3,
-          "fixed+compare": "106.2 (-62%)",
-          "fixed+compare+bindings": "114.2 (-59%)",
-          "fixed+compare-inputs": "111.6 (-60%)",
-          "fixed+compare-inputs+bindings": "111.9 (-60%)"
+          "stock": 290.2,
+          "fixed": "295.7 (+2%)",
+          "core-final": "120.5 (-58%)",
+          "fixed+core-final": "113.1 (-61%)"
         },
         "attribute writes, all elements (untimed load)": {
           "stock": 12961,
-          "fixed+compare": "349 (-97%)",
-          "fixed+compare+bindings": "349 (-97%)",
-          "fixed+compare-inputs": "349 (-97%)",
-          "fixed+compare-inputs+bindings": "349 (-97%)"
+          "fixed": "12945 (0%)",
+          "core-final": "365 (-97%)",
+          "fixed+core-final": "349 (-97%)"
         },
         "img load events": {
           "stock": 2,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0 (-100%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "(load) handler calls": {
           "stock": 0,
-          "fixed+compare": 0,
-          "fixed+compare+bindings": 0,
-          "fixed+compare-inputs": 0,
-          "fixed+compare-inputs+bindings": 0
+          "fixed": 0,
+          "core-final": 0,
+          "fixed+core-final": 0
         },
         "renders after stable": {
           "stock": 1,
-          "fixed+compare": "1 (0%)",
-          "fixed+compare+bindings": "1 (0%)",
-          "fixed+compare-inputs": "1 (0%)",
-          "fixed+compare-inputs+bindings": "1 (0%)"
+          "fixed": "1 (0%)",
+          "core-final": "1 (0%)",
+          "fixed+core-final": "1 (0%)"
         },
         "elements restyled": {
           "stock": 1247,
-          "fixed+compare": "43 (-97%)",
-          "fixed+compare+bindings": "43 (-97%)",
-          "fixed+compare-inputs": "43 (-97%)",
-          "fixed+compare-inputs+bindings": "43 (-97%)"
+          "fixed": "1245 (0%)",
+          "core-final": "45 (-96%)",
+          "fixed+core-final": "43 (-97%)"
         },
         "layouts (reflows)": {
           "stock": 1,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "1 (0%)",
+          "core-final": "0 (-100%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "paints": {
           "stock": 2,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "2 (0%)",
+          "core-final": "2 (0%)",
+          "fixed+core-final": "0 (-100%)"
         }
       },
       "byGroup": {
         "Script + DOM API": {
-          "stock": 176.49,
-          "fixed+compare": "68.95 (-61%)",
-          "fixed+compare+bindings": "69.63 (-61%)",
-          "fixed+compare-inputs": "68.97 (-61%)",
-          "fixed+compare-inputs+bindings": "69.41 (-61%)"
+          "stock": 181.16,
+          "fixed": "179.6 (-1%)",
+          "core-final": "70.01 (-61%)",
+          "fixed+core-final": "72.33 (-60%)"
         },
         "Image re-fetch (memory cache)": {
-          "stock": 0.22,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 0.39,
+          "fixed": "0 (-100%)",
+          "core-final": "0.38 (-1%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Style recalc": {
-          "stock": 14.65,
-          "fixed+compare": "0.63 (-96%)",
-          "fixed+compare+bindings": "0.61 (-96%)",
-          "fixed+compare-inputs": "0.61 (-96%)",
-          "fixed+compare-inputs+bindings": "0.61 (-96%)"
+          "stock": 15.63,
+          "fixed": "15.34 (-2%)",
+          "core-final": "0.82 (-95%)",
+          "fixed+core-final": "0.63 (-96%)"
         },
         "Layout (reflow)": {
-          "stock": 0.4,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 0.41,
+          "fixed": "0.42 (+2%)",
+          "core-final": "0 (-100%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Intersection observers (lazy load)": {
           "stock": 0.03,
-          "fixed+compare": "0.18 (+632%)",
-          "fixed+compare+bindings": "0.02 (-8%)",
-          "fixed+compare-inputs": "0.03 (+16%)",
-          "fixed+compare-inputs+bindings": "0.18 (+604%)"
+          "fixed": "0.18 (+608%)",
+          "core-final": "0.03 (+19%)",
+          "fixed+core-final": "0.03 (+19%)"
         },
         "Paint / composite": {
-          "stock": 17.68,
-          "fixed+compare": "0.97 (-94%)",
-          "fixed+compare+bindings": "1.16 (-93%)",
-          "fixed+compare-inputs": "1.83 (-90%)",
-          "fixed+compare-inputs+bindings": "2.02 (-89%)"
+          "stock": 18.23,
+          "fixed": "19.01 (+4%)",
+          "core-final": "11.62 (-36%)",
+          "fixed+core-final": "0.99 (-95%)"
         },
         "Image decode": {
           "stock": 0,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "fixed": "0 (-50%)",
+          "core-final": "0 (-100%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Event dispatch": {
-          "stock": 0.18,
-          "fixed+compare": "0 (-100%)",
-          "fixed+compare+bindings": "0 (-100%)",
-          "fixed+compare-inputs": "0 (-100%)",
-          "fixed+compare-inputs+bindings": "0 (-100%)"
+          "stock": 0.19,
+          "fixed": "0 (-100%)",
+          "core-final": "0.03 (-83%)",
+          "fixed+core-final": "0 (-100%)"
         },
         "Other": {
-          "stock": 72.53,
-          "fixed+compare": "36.02 (-50%)",
-          "fixed+compare+bindings": "41.53 (-43%)",
-          "fixed+compare-inputs": "40.02 (-45%)",
-          "fixed+compare-inputs+bindings": "41.03 (-43%)"
+          "stock": 70.89,
+          "fixed": "79.51 (+12%)",
+          "core-final": "37.04 (-48%)",
+          "fixed+core-final": "40.24 (-43%)"
         }
       }
     }
