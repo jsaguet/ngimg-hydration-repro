@@ -6,8 +6,9 @@ This repository reproduces the problems in an Angular 22.2.5 server-rendered app
 
 | Fix | Issue | Pull request |
 |---|---|---|
-| Core: don't write unchanged static values or resource URL bindings on hydrated nodes | [#52477](https://github.com/angular/angular/issues/52477) | [#71874](https://github.com/angular/angular/pull/71874) |
+| Core: don't reload iframes and media | [#52477](https://github.com/angular/angular/issues/52477) | [#71874](https://github.com/angular/angular/pull/71874) |
 | `NgOptimizedImage`: don't write unchanged attributes | [#71873](https://github.com/angular/angular/issues/71873) | [#71875](https://github.com/angular/angular/pull/71875) |
+| Core: the cost of all the other writes | [#71971](https://github.com/angular/angular/issues/71971) | None yet |
 
 ## Hydration restarts playing videos
 
@@ -58,25 +59,25 @@ Hydration time is the time from `bootstrapApplication()` until `ApplicationRef.w
 
 | Page and CPU | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|
-| Image grid, no throttling | 34.8 ms | 28.1 ms (−19%) | 32.6 ms (−6%) | 25.6 ms (−26%) |
-| Image grid, 4× CPU throttling | 247.9 ms | 198.6 ms (−20%) | 233.1 ms (−6%) | 190.1 ms (−23%) |
-| Bound image grid, no throttling | 23.4 ms | 9.6 ms (−59%) | 25.3 ms (+8%) | 9.6 ms (−59%) |
-| Bound image grid, 4× CPU throttling | 168.6 ms | 63.4 ms (−62%) | 164.9 ms (−2%) | 61.4 ms (−64%) |
-| Table, no throttling | 22.3 ms | 22.4 ms (0%) | 10.0 ms (−55%) | 10.0 ms (−55%) |
-| Table, 4× CPU throttling | 162.0 ms | 163.7 ms (+1%) | 61.6 ms (−62%) | 60.0 ms (−63%) |
+| Image grid, no throttling | 38.2 ms | 30.4 ms (−20%) | 37.2 ms (−3%) | 30.0 ms (−21%) |
+| Image grid, 4× CPU throttling | 260.6 ms | 206.9 ms (−21%) | 267.0 ms (+2%) | 207.7 ms (−20%) |
+| Bound image grid, no throttling | 22.4 ms | 9.5 ms (−58%) | 23.3 ms (+4%) | 10.5 ms (−53%) |
+| Bound image grid, 4× CPU throttling | 160.2 ms | 60.7 ms (−62%) | 161.7 ms (+1%) | 60.2 ms (−62%) |
+| Table, no throttling | 22.6 ms | 22.0 ms (−3%) | 22.4 ms (−1%) | 22.2 ms (−2%) |
+| Table, 4× CPU throttling | 157.5 ms | 163.7 ms (+4%) | 155.4 ms (−1%) | 157.8 ms (0%) |
 
-The two fixes help different pages. Differences of a few percent are within the variation between runs. So is the +8% for `core-fix` on the bound grid, which becomes −2% with throttling.
+Differences of a few percent are within the variation between runs. The core fix only stops the writes that reload a resource, so it doesn't change these pages. Hydration still writes every other static attribute, class, and style, and every other binding. [#71971](https://github.com/angular/angular/issues/71971) tracks that cost. On the table page, an experimental patch that also skipped those writes took hydration from 162.0 ms to 61.6 ms at 4× CPU throttling. That patch and its measurements are at commit [`d6b35a8`](https://github.com/jsaguet/ngimg-hydration-repro/tree/d6b35a8).
 
 | Page | Measure | `stock` | `directive-fix` | `core-fix` | `both-fixes` |
 |---|---|---|---|---|---|
-| Image grid | Attribute writes | 3,637 | 2,033 | 2,432 | 824 |
-| Image grid | `load` events fired again | 30 | 30 | 30 | 26 |
-| Image grid | `(load)` handler calls for 30 loaded images | 60 | 60 | 60 | 56 |
-| Bound image grid | Attribute writes | 3,037 | 1,207 | 2,236 | 406 |
+| Image grid | Attribute writes | 3,637 | 2,033 | 3,637 | 2,033 |
+| Image grid | `load` events fired again | 30 | 30 | 30 | 30 |
+| Image grid | `(load)` handler calls for 30 loaded images | 60 | 60 | 60 | 60 |
+| Bound image grid | Attribute writes | 3,037 | 1,207 | 3,037 | 1,207 |
 | Bound image grid | `load` events fired again | 30 | 0 | 30 | 0 |
 | Bound image grid | `(load)` handler calls for 30 loaded images | 60 | 30 | 60 | 30 |
-| Table | Attribute writes | 12,961 | 12,945 | 365 | 349 |
-| Table | Elements restyled after hydration | 1,247 | 1,245 | 45 | 43 |
+| Table | Attribute writes | 12,961 | 12,945 | 12,961 | 12,945 |
+| Table | Elements restyled after hydration | 1,247 | 1,245 | 1,247 | 1,245 |
 
 The complete output is in [`results/timings.txt`](results/timings.txt) and [`results/dom-writes.txt`](results/dom-writes.txt). In every build and on every page, the DOM after hydration is the same as in `stock`, apart from two things that the comparison ignores on purpose. Those are the `(load)` counters on the image grid and the marker that `/media` sets on a restarted video.
 
@@ -87,11 +88,11 @@ A handler can depend on these repeated writes without anyone intending it. [`res
 | Build and event replay | Plain `<img>` `(load)` | Iframe `(load)` | Video `(canplay)` |
 |---|---|---|---|
 | `stock`, on | 2 | 2 | 1 |
-| `core-fix`, on | 1 | 1 | 0 |
+| `core-fix`, on | 2 | 1 | 0 |
 | `stock`, off | 1 | 1 | 1 |
-| `core-fix`, off | 0 | 0 | 0 |
+| `core-fix`, off | 1 | 0 | 0 |
 
-The iframe values are the same for `src` and `[src]`. Today, a video that was ready before hydration fires `canplay` again because it restarts. With the core fix it doesn't restart, and event replay doesn't cover `canplay`, so the handler doesn't run for that earlier event.
+The iframe values are the same for `src` and `[src]`. The core fix doesn't cover `<img>`, which doesn't load again, so its `(load)` values don't change. Today, a video that was ready before hydration fires `canplay` again because it restarts. With the core fix it doesn't restart, and event replay doesn't cover `canplay`, so the handler doesn't run for that earlier event.
 
 ## Run it yourself
 

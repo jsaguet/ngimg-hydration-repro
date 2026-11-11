@@ -51,7 +51,7 @@ const FIXES = {
     ],
   ],
   core: coreEdits([
-      // Static attributes, class and style.
+      // Static resource URLs.
       [
         `    setupStaticAttributes(lView[RENDERER], native, tNode);
     if (getElementDepthCount() === 0`,
@@ -60,7 +60,11 @@ const FIXES = {
       ],
       [
         `function setUpAttributes(renderer, native, attrs) {`,
-        `function setUpAttributes(renderer, native, attrs, skipIfUnchanged = false) {`,
+        `function isResourceAttribute(tagName, name) {
+  return name === 'src' ? tagName === 'iframe' || tagName === 'embed' || tagName === 'video' || tagName === 'audio'
+    : name === 'data' && tagName === 'object';
+}
+function setUpAttributes(renderer, native, attrs, hydratedTagName = null) {`,
       ],
       [
         `      if (isAnimationProp(attrName)) {
@@ -70,7 +74,7 @@ const FIXES = {
       }`,
         `      if (isAnimationProp(attrName)) {
         renderer.setProperty(native, attrName, attrVal);
-      } else if (!skipIfUnchanged || native.getAttribute(attrName) !== String(attrVal)) {
+      } else if (hydratedTagName === null || !isResourceAttribute(hydratedTagName, attrName) || native.getAttribute(attrName) !== String(attrVal)) {
         renderer.setAttribute(native, attrName, attrVal);
       }`,
       ],
@@ -92,19 +96,19 @@ const FIXES = {
   }
 }`,
         `globalThis.__coreFix = true;
-function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false) {
+function setupStaticAttributes(renderer, element, tNode, isHydrated = false) {
   const {
     mergedAttrs,
     classes,
     styles
   } = tNode;
   if (mergedAttrs !== null) {
-    setUpAttributes(renderer, element, mergedAttrs, skipIfUnchanged);
+    setUpAttributes(renderer, element, mergedAttrs, isHydrated ? tNode.value : null);
   }
-  if (classes !== null && (!skipIfUnchanged || element.getAttribute('class') !== (classes || null))) {
+  if (classes !== null) {
     writeDirectClass(renderer, element, classes);
   }
-  if (styles !== null && (!skipIfUnchanged || element.getAttribute('style') !== styles)) {
+  if (styles !== null) {
     writeDirectStyle(renderer, element, styles);
   }
 }`,
@@ -122,7 +126,7 @@ function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false
       ],
       [
         `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer);`,
-        `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, isFirstWriteOfRenderedResource(tNode, lView, name));`,
+        `  setElementAttribute(lView[RENDERER], element, namespace, tNode.value, name, value, sanitizer, namespace == null && isFirstWriteOfRenderedResource(tNode, lView, name));`,
       ],
       // Property bindings.
       [
@@ -136,10 +140,7 @@ function setupStaticAttributes(renderer, element, tNode, skipIfUnchanged = false
       [
         `function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
         `function isFirstWriteOfRenderedResource(tNode, lView, name) {
-  const tagName = tNode.value;
-  return lView[HYDRATION] !== null && (lView[FLAGS] & 8) !== 0 &&
-    (name === 'src' ? tagName === 'iframe' || tagName === 'embed' || tagName === 'video' || tagName === 'audio'
-                    : name === 'data' && tagName === 'object');
+  return lView[HYDRATION] !== null && (lView[FLAGS] & 8) !== 0 && isResourceAttribute(tNode.value, name);
 }
 function setDomProperty(tNode, lView, propName, value, renderer, sanitizer) {`,
       ],

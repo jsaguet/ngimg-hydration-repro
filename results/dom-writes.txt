@@ -5,13 +5,13 @@
 ├───────────────┼──────────────────┼────────────────────┼─────────────────────────────────────────────────────────┼───────────────────┤
 │ stock         │ 3637             │ 3011               │ 'class 631, sizes 400, height 400, width 400'           │ 'yes'             │
 │ directive-fix │ 2033             │ 1407               │ 'class 631, sizes 396, data-digest-ignore 200, alt 200' │ 'yes'             │
-│ core-fix      │ 2432             │ 1806               │ 'sizes 396, class 230, srcset 200, src 200'             │ 'yes'             │
-│ both-fixes    │ 824              │ 202                │ 'sizes 392, class 226, jsaction 200, ngh 2'             │ 'yes'             │
+│ core-fix      │ 3637             │ 3011               │ 'class 631, sizes 400, height 400, width 400'           │ 'yes'             │
+│ both-fixes    │ 2033             │ 1407               │ 'class 631, sizes 396, data-digest-ignore 200, alt 200' │ 'yes'             │
 └───────────────┴──────────────────┴────────────────────┴─────────────────────────────────────────────────────────┴───────────────────┘
 stock: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×30 (e.g. "badge" → "badge twice"); sizes ×392 (e.g. "(max-width: 640px) 50vw, (max-width: 12 → "auto, (max-width: 640px) 50vw, (max-wid); jsaction ×200 (e.g. "load:;" → null)
 directive-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×30 (e.g. "badge" → "badge twice"); sizes ×392 (e.g. "(max-width: 640px) 50vw, (max-width: 12 → "auto, (max-width: 640px) 50vw, (max-wid); jsaction ×200 (e.g. "load:;" → null)
 core-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×30 (e.g. "badge" → "badge twice"); sizes ×392 (e.g. "(max-width: 640px) 50vw, (max-width: 12 → "auto, (max-width: 640px) 50vw, (max-wid); jsaction ×200 (e.g. "load:;" → null)
-both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×26 (e.g. "badge" → "badge twice"); sizes ×392 (e.g. "(max-width: 640px) 50vw, (max-width: 12 → "auto, (max-width: 640px) 50vw, (max-wid); jsaction ×200 (e.g. "load:;" → null)
+both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×30 (e.g. "badge" → "badge twice"); sizes ×392 (e.g. "(max-width: 640px) 50vw, (max-width: 12 → "auto, (max-width: 640px) 50vw, (max-wid); jsaction ×200 (e.g. "load:;" → null)
 
 === bound image grid: same grid, [width]/[height]/[sizes] bindings ===
 ┌───────────────┬──────────────────┬────────────────────┬────────────────────────────────────────────────────────────┬───────────────────┐
@@ -19,8 +19,8 @@ both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (
 ├───────────────┼──────────────────┼────────────────────┼────────────────────────────────────────────────────────────┼───────────────────┤
 │ stock         │ 3037             │ 2803               │ 'class 631, sizes 200, srcset 200, src 200'                │ 'yes'             │
 │ directive-fix │ 1207             │ 1003               │ 'class 601, data-digest-ignore 200, alt 200, jsaction 200' │ 'yes'             │
-│ core-fix      │ 2236             │ 2002               │ 'class 230, sizes 200, srcset 200, src 200'                │ 'yes'             │
-│ both-fixes    │ 406              │ 202                │ 'class 200, jsaction 200, ngh 2, ng-version 2'             │ 'yes'             │
+│ core-fix      │ 3037             │ 2803               │ 'class 631, sizes 200, srcset 200, src 200'                │ 'yes'             │
+│ both-fixes    │ 1207             │ 1003               │ 'class 601, data-digest-ignore 200, alt 200, jsaction 200' │ 'yes'             │
 └───────────────┴──────────────────┴────────────────────┴────────────────────────────────────────────────────────────┴───────────────────┘
 stock: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×30 (e.g. "badge" → "badge twice"); jsaction ×200 (e.g. "load:;" → null)
 directive-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); jsaction ×200 (e.g. "load:;" → null)
@@ -33,8 +33,8 @@ both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (
 ├───────────────┼──────────────────┼────────────────────┼────────────────────────────────────────────────┼───────────────────┤
 │ stock         │ 12961            │ 12871              │ 'class 3915, role 1809, title 900, height 604' │ 'yes'             │
 │ directive-fix │ 12945            │ 12855              │ 'class 3915, role 1809, title 900, height 602' │ 'yes'             │
-│ core-fix      │ 365              │ 275                │ 'class 343, ngh 2, ng-version 2, srcset 2'     │ 'yes'             │
-│ both-fixes    │ 349              │ 259                │ 'class 343, ngh 2, ng-version 2, ng-app-id 1'  │ 'yes'             │
+│ core-fix      │ 12961            │ 12871              │ 'class 3915, role 1809, title 900, height 604' │ 'yes'             │
+│ both-fixes    │ 12945            │ 12855              │ 'class 3915, role 1809, title 900, height 602' │ 'yes'             │
 └───────────────┴──────────────────┴────────────────────┴────────────────────────────────────────────────┴───────────────────┘
 stock: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×86 (e.g. "badge badge--status" → "badge badge--status badge--warn")
 directive-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×86 (e.g. "badge badge--status" → "badge badge--status badge--warn")
@@ -42,15 +42,15 @@ core-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.
 both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); class ×86 (e.g. "badge badge--status" → "badge badge--status badge--warn")
 
 === media: videos, and values that differ between server and browser ===
-┌───────────────┬──────────────────┬────────────────────┬─────────────────────────────────────────────────────┬───────────────────┐
-│ (index)       │ attribute writes │ of which identical │ top attributes                                      │ final DOM = stock │
-├───────────────┼──────────────────┼────────────────────┼─────────────────────────────────────────────────────┼───────────────────┤
-│ stock         │ 72               │ 58                 │ 'data-restarted 8, height 7, width 7, src 7'        │ 'yes'             │
-│ directive-fix │ 72               │ 58                 │ 'data-restarted 8, height 7, width 7, src 7'        │ 'yes'             │
-│ core-fix      │ 14               │ 3                  │ 'jsaction 3, ngh 2, ng-version 2, data-restarted 2' │ 'yes'             │
-│ both-fixes    │ 14               │ 3                  │ 'jsaction 3, ngh 2, ng-version 2, data-restarted 2' │ 'yes'             │
-└───────────────┴──────────────────┴────────────────────┴─────────────────────────────────────────────────────┴───────────────────┘
+┌───────────────┬──────────────────┬────────────────────┬──────────────────────────────────────────────┬───────────────────┐
+│ (index)       │ attribute writes │ of which identical │ top attributes                               │ final DOM = stock │
+├───────────────┼──────────────────┼────────────────────┼──────────────────────────────────────────────┼───────────────────┤
+│ stock         │ 72               │ 58                 │ 'data-restarted 8, height 7, width 7, src 7' │ 'yes'             │
+│ directive-fix │ 72               │ 58                 │ 'data-restarted 8, height 7, width 7, src 7' │ 'yes'             │
+│ core-fix      │ 61               │ 50                 │ 'height 7, width 7, class 5, preload 4'      │ 'yes'             │
+│ both-fixes    │ 61               │ 50                 │ 'height 7, width 7, class 5, preload 4'      │ 'yes'             │
+└───────────────┴──────────────────┴────────────────────┴──────────────────────────────────────────────┴───────────────────┘
 stock: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); title ×1 (e.g. "server" → "browser"); src ×1 (e.g. "clip.webm?rendered-on=server" → "clip.webm?rendered-on=browser"); data-restarted ×4 (e.g. null → ""); data-platform ×1 (e.g. "server" → "browser"); jsaction ×3 (e.g. "load:;" → null)
 directive-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); title ×1 (e.g. "server" → "browser"); src ×1 (e.g. "clip.webm?rendered-on=server" → "clip.webm?rendered-on=browser"); data-restarted ×4 (e.g. null → ""); data-platform ×1 (e.g. "server" → "browser"); jsaction ×3 (e.g. "load:;" → null)
-core-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); data-platform ×1 (e.g. "server" → "browser"); title ×1 (e.g. "server" → "browser"); src ×1 (e.g. "clip.webm?rendered-on=server" → "clip.webm?rendered-on=browser"); jsaction ×3 (e.g. "load:;" → null); data-restarted ×1 (e.g. null → "")
-both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); data-platform ×1 (e.g. "server" → "browser"); title ×1 (e.g. "server" → "browser"); src ×1 (e.g. "clip.webm?rendered-on=server" → "clip.webm?rendered-on=browser"); jsaction ×3 (e.g. "load:;" → null); data-restarted ×1 (e.g. null → "")
+core-fix: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); title ×1 (e.g. "server" → "browser"); src ×1 (e.g. "clip.webm?rendered-on=server" → "clip.webm?rendered-on=browser"); data-platform ×1 (e.g. "server" → "browser"); jsaction ×3 (e.g. "load:;" → null); data-restarted ×1 (e.g. null → "")
+both-fixes: value-changing writes: ngh ×2 (e.g. "1" → null); ng-version ×1 (e.g. null → "22.2.5"); ng-app-id ×1 (e.g. "ng" → null); title ×1 (e.g. "server" → "browser"); src ×1 (e.g. "clip.webm?rendered-on=server" → "clip.webm?rendered-on=browser"); data-platform ×1 (e.g. "server" → "browser"); jsaction ×3 (e.g. "load:;" → null); data-restarted ×1 (e.g. null → "")
